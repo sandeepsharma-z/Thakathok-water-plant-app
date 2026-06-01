@@ -74,7 +74,11 @@ The first testable version will target Customer Login, Order Flow, SMS/OTP setup
 
 ## Review Process
 
-Weekly review calls can be planned mutually based on client availability and development schedule after the project officially starts.
+Weekly review calls will be planned every Friday at 4:00 PM once development starts.
+
+## SMS/OTP DLT Setup
+
+Jio DLT can be used for SMS/OTP configuration with Fast2SMS after approval. The required details from the client side are Entity ID, Header/Sender ID, and Template IDs.
 
 ## Project Status
 
