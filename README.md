@@ -1,5 +1,7 @@
 # Thaka Thok Water Delivery App
 
+README Version: v1.1
+
 Thaka Thok Water Delivery App is a complete water plant delivery management system developed for managing customer orders, pending payments, empty jar/can returns, delivery staff updates, admin approval, and delivery workflow in one centralized platform.
 
 ## Project Modules
@@ -65,6 +67,14 @@ Thaka Thok Water Delivery App is a complete water plant delivery management syst
 - Database: Structured database for customers, orders, payments, cans, staff, and reports
 - Hosting/Deployment: Client-owned AWS account as discussed
 - Repository: Client-owned GitHub repository
+
+## Milestone 1 Target
+
+The first testable version will target Customer Login, Order Flow, SMS/OTP setup, Branch Filter, and Combined Reports within 7-10 working days from payment confirmation and required access/API details shared by the client side.
+
+## Review Process
+
+Weekly review calls can be planned mutually based on client availability and development schedule after the project officially starts.
 
 ## Project Status
 
