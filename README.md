@@ -47,9 +47,13 @@ Thaka Thok Water Delivery App is a complete water plant delivery management syst
 - Route/order visibility
 - Daily delivery workflow
 
-## Phase 2 Planned Feature
+## Phase 1 Aadhaar Number Duplicate Check
 
-- Aadhaar-based eKYC with duplicate customer check and dues mapping
+- Aadhaar number-based duplicate check and pending dues tracking for water delivery
+- No Aadhaar eKYC/API integration involved
+- If a customer registers again with another mobile number but the same Aadhaar number, previous pending dues and empty can records will remain linked
+- Customers with pending dues or pending empty cans cannot place another order until previous records are cleared and verified
+- The same app structure can support additional branches/business locations in the future with proper configuration
 
 ## Technology Stack
 
