@@ -47,6 +47,10 @@ Thaka Thok Water Delivery App is a complete water plant delivery management syst
 - Route/order visibility
 - Daily delivery workflow
 
+## Phase 2 Planned Feature
+
+- Aadhaar-based eKYC with duplicate customer check and dues mapping
+
 ## Technology Stack
 
 - Mobile App: Flutter
