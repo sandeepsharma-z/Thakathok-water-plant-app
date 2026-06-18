@@ -101,6 +101,10 @@ Total Project Cost: ₹75,000 one-time.
 
 Timeline: 30 days from advance payment and required access/details shared by client.
 
+The official project development start date will be counted from the date of advance payment confirmation/UTR receipt and required access/API details shared by the client side.
+
+Any timeline, milestone delivery period, weekly review cycle, and active development work will begin only after the advance payment is received and confirmed.
+
 If client provides AWS access, OTP API keys, GitHub access, required content, and approvals within 3 days of request, then the 30-day timeline will stand.
 
 Any delay beyond that from client side will extend the timeline accordingly without penalty.

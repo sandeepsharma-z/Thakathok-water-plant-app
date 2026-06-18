@@ -18,7 +18,9 @@ Code can be pushed regularly for transparency and progress tracking.
 
 The initial setup commit is only for project setup and repository confirmation.
 
-Full development will officially start after advance payment confirmation.
+Full development will officially start after advance payment confirmation/UTR receipt and required access/API details are shared by the client side.
+
+Any timeline, milestone delivery period, weekly review cycle, and active development work will begin only after the advance payment is received and confirmed.
 
 ## Hosting & Accounts
 

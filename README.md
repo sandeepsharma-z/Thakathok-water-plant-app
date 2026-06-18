@@ -1,6 +1,6 @@
 # Thaka Thok Water Delivery App
 
-README Version: v1.1
+README Version: v1.2
 
 Thaka Thok Water Delivery App is a complete water plant delivery management system developed for managing customer orders, pending payments, empty jar/can returns, delivery staff updates, admin approval, and delivery workflow in one centralized platform.
 
@@ -72,6 +72,12 @@ Thaka Thok Water Delivery App is a complete water plant delivery management syst
 
 The first testable version will target Customer Login, Order Flow, SMS/OTP setup, Branch Filter, and Combined Reports within 7-10 working days from payment confirmation and required access/API details shared by the client side.
 
+## Development Start Condition
+
+The official project development start date will be counted from the date of advance payment confirmation/UTR receipt and required access/API details shared by the client side.
+
+Any timeline, milestone delivery period, weekly review cycle, and active development work will begin only after the advance payment is received and confirmed.
+
 ## Review Process
 
 Weekly review calls will be planned every Friday at 4:00 PM once development starts.
@@ -82,7 +88,7 @@ Jio DLT can be used for SMS/OTP configuration with Fast2SMS after approval. The 
 
 ## Project Status
 
-Initial project setup commit created.
+Initial project setup and documentation commits have been created. Full development will officially start after advance payment confirmation/UTR receipt and required access/API details are shared by the client side.
 
 ## Developed By
 

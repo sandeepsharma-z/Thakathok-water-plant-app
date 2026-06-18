@@ -14,6 +14,10 @@ Total Project Cost: ₹75,000 one-time.
 
 Advance amount of ₹22,500 will be released after the initial project setup commit is pushed to the client-owned GitHub repository as agreed.
 
+Official project development will start only after advance payment confirmation/UTR receipt and required access/API details are shared by the client side.
+
+Any timeline, milestone delivery period, weekly review cycle, and active development work will begin only after the advance payment is received and confirmed.
+
 ## Second Milestone
 
 40% payment of ₹30,000 will be released within 2 days after live working demo of Admin Panel + Customer App + Delivery Panel on test server.
