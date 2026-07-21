@@ -26,7 +26,32 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       drawer: const _AppDrawer(),
-      body: SafeArea(
+      body: Stack(
+        children: [
+          // Soft blue glow behind the top of the screen, fading into white.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 340,
+            child: const IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment(0, -0.75),
+                    radius: 1.15,
+                    colors: [
+                      Color(0xFFC9E3FF),
+                      Color(0xFFE4F1FF),
+                      Color(0x00FFFFFF),
+                    ],
+                    stops: [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -66,6 +91,8 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
+          ),
+        ],
       ),
       bottomNavigationBar: const _Footer(),
     );
@@ -96,16 +123,20 @@ class _Header extends StatelessWidget {
               ),
               child: const BrandLogo(size: 44),
             ),
-            // Menu — pinned left
+            // Menu — pinned left. Nudged out so the glyph's stroke lines up
+            // with the greeting text below it, not the icon's padded box.
             Align(
               alignment: Alignment.centerLeft,
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                icon: const Icon(Icons.menu_rounded,
-                    color: AppColors.textDark, size: 26),
-                tooltip: 'Menu',
-                onPressed: () => Scaffold.of(context).openDrawer(),
+              child: Transform.translate(
+                offset: const Offset(-6, 0),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.menu_rounded,
+                      color: AppColors.textDark, size: 26),
+                  tooltip: 'Menu',
+                  onPressed: () => Scaffold.of(context).openDrawer(),
+                ),
               ),
             ),
             // Notifications + profile — pinned right
@@ -437,13 +468,13 @@ class _MoneyCard extends StatelessWidget {
               Text(amount,
                   style: const TextStyle(
                       fontSize: 21,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.textDark,
                       height: 1.1)),
               Text(paise,
                   style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w400,
                       color: AppColors.body)),
             ],
           ),
