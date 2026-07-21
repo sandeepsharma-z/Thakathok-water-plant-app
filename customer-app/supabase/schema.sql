@@ -75,8 +75,27 @@ drop policy if exists bookings_read on public.bookings;
 create policy bookings_read on public.bookings
   for select using (true);
 
+-- ── 4. Admin policies ───────────────────────────────────────
+-- The admin (plant owner) signs in with Supabase Auth (email + password),
+-- created once in Dashboard → Authentication → Users. Any signed-in user is
+-- treated as the admin for this single-tenant app.
+
+-- settings: signed-in admin can change the rates
+drop policy if exists settings_admin_update on public.settings;
+create policy settings_admin_update on public.settings
+  for update to authenticated using (true) with check (true);
+
+-- bookings: signed-in admin can confirm / cancel
+drop policy if exists bookings_admin_update on public.bookings;
+create policy bookings_admin_update on public.bookings
+  for update to authenticated using (true) with check (true);
+
 -- ============================================================
 -- Done. Verify:
 --   select * from public.settings;
 --   select * from public.bookings;
+--
+-- Then create the admin login:
+--   Dashboard → Authentication → Users → "Add user"
+--   (email + password, and tick "Auto Confirm User")
 -- ============================================================

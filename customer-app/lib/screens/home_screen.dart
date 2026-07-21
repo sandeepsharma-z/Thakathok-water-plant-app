@@ -4,8 +4,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../services/booking_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
+import 'admin/admin_dashboard_screen.dart';
+import 'admin/admin_login_screen.dart';
 import 'bulk_order_form_screen.dart';
 
 const double _kPad = 14;
@@ -75,8 +78,17 @@ class _Header extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Brand logo — truly centred on the screen
-            const BrandLogo(size: 44),
+            // Brand logo — truly centred. Long-press opens the admin panel.
+            GestureDetector(
+              onLongPress: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => BookingService.instance.isAdminSignedIn
+                      ? const AdminDashboardScreen()
+                      : const AdminLoginScreen(),
+                ),
+              ),
+              child: const BrandLogo(size: 44),
+            ),
             // Location — pinned left
             Align(
               alignment: Alignment.centerLeft,

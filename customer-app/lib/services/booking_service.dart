@@ -67,6 +67,44 @@ class BookingService {
     return List<Map<String, dynamic>>.from(rows);
   }
 
+  // ── Admin ────────────────────────────────────────────────────────────
+  // These require a signed-in admin (Supabase Auth); RLS blocks anon writes.
+
+  /// All bookings, newest first. Pass a [status] to filter.
+  Future<List<Map<String, dynamic>>> allBookings({String? status}) async {
+    var query = _db.from('bookings').select();
+    if (status != null) query = query.eq('status', status);
+    final rows = await query.order('created_at', ascending: false);
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  /// Change a booking's status — e.g. 'confirmed' once cash is received.
+  Future<void> updateBookingStatus(String id, String status) async {
+    await _db.from('bookings').update({'status': status}).eq('id', id);
+  }
+
+  /// Update the admin-controlled pricing.
+  Future<void> updateSettings({
+    required int perCanRate,
+    required int deliveryCharge,
+  }) async {
+    await _db.from('settings').update({
+      'per_can_rate': perCanRate,
+      'delivery_charge': deliveryCharge,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', 1);
+  }
+
+  // ── Admin auth ───────────────────────────────────────────────────────
+
+  bool get isAdminSignedIn => _db.auth.currentUser != null;
+
+  Future<void> adminSignIn(String email, String password) async {
+    await _db.auth.signInWithPassword(email: email, password: password);
+  }
+
+  Future<void> adminSignOut() => _db.auth.signOut();
+
   static String _dateOnly(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'
