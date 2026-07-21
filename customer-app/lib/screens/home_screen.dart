@@ -10,6 +10,7 @@ import '../widgets/brand_logo.dart';
 import 'admin/admin_dashboard_screen.dart';
 import 'admin/admin_login_screen.dart';
 import 'bulk_order_form_screen.dart';
+import 'profile_screen.dart';
 
 const double _kPad = 14;
 
@@ -24,6 +25,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      drawer: const _AppDrawer(),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -36,10 +38,13 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
-                    SizedBox(height: 6),
+                    _Greeting(),
+                    SizedBox(height: 12),
                     _SearchBar(),
                     SizedBox(height: _kGap),
                     _BannerCarousel(),
+                    SizedBox(height: _kGap),
+                    _WalletDuesRow(),
                     SizedBox(height: _kGap),
                     _OfferCard(),
                     SizedBox(height: _kGap),
@@ -53,6 +58,8 @@ class HomeScreen extends StatelessWidget {
                     _ShopByNeed(),
                     SizedBox(height: _kGap),
                     _AssetBanner('assets/images/image 25.png', 428 / 109),
+                    SizedBox(height: _kGap),
+                    _TrustStrip(),
                   ],
                 ),
               ),
@@ -89,29 +96,460 @@ class _Header extends StatelessWidget {
               ),
               child: const BrandLogo(size: 44),
             ),
-            // Location — pinned left
+            // Menu — pinned left
             Align(
               alignment: Alignment.centerLeft,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(Icons.menu_rounded,
+                    color: AppColors.textDark, size: 26),
+                tooltip: 'Menu',
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+            // Notifications + profile — pinned right
+            Align(
+              alignment: Alignment.centerRight,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.location_on, color: AppColors.brand, size: 17),
-                  SizedBox(width: 2),
-                  Text('Noida,UP',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black)),
-                  Icon(Icons.keyboard_arrow_down_rounded,
-                      size: 17, color: Colors.black),
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Image.asset('assets/images/Vector.png', height: 21),
+                      Positioned(
+                        right: -4,
+                        top: -5,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE23D3D),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Text('3',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  height: 1,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 14),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const ProfileScreen()),
+                    ),
+                    child: Container(
+                      height: 36,
+                      width: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.tint,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.hairline),
+                      ),
+                      child: const Icon(Icons.person_rounded,
+                          color: AppColors.brand, size: 21),
+                    ),
+                  ),
                 ],
               ),
             ),
-            // Bell — pinned right
-            Align(
-              alignment: Alignment.centerRight,
-              child: Image.asset('assets/images/Vector.png', height: 21),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Side drawer ───────────────────────────────────────────────────────
+class _AppDrawer extends StatelessWidget {
+  const _AppDrawer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+              child: Row(
+                children: [
+                  const BrandLogo(size: 44),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Text(_Greeting.customerName,
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textDark)),
+                      Text('Mahalakshmi Water Plant',
+                          style: TextStyle(
+                              fontSize: 10.5, color: AppColors.body)),
+                    ],
+                  ),
+                ],
+              ),
             ),
+            const Divider(height: 1),
+            _DrawerItem(
+              icon: Icons.person_outline_rounded,
+              label: 'My Profile',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const ProfileScreen()));
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.water_drop_outlined,
+              label: 'Request Bulk Order',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const BulkOrderFormScreen()));
+              },
+            ),
+            const _DrawerItem(
+                icon: Icons.receipt_long_outlined, label: 'My Bookings'),
+            const _DrawerItem(
+                icon: Icons.account_balance_wallet_outlined, label: 'Wallet'),
+            const _DrawerItem(
+                icon: Icons.headset_mic_outlined, label: 'Help & Support'),
+            const Spacer(),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'ThakaThok · Mahalakshmi Water Plant',
+                style: TextStyle(
+                    fontSize: 10.5,
+                    color: AppColors.body.withValues(alpha: 0.7)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  const _DrawerItem({required this.icon, required this.label, this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.brand, size: 21),
+      title: Text(label,
+          style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textDark)),
+      onTap: onTap ??
+          () {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('$label — coming soon')),
+            );
+          },
+      dense: true,
+      visualDensity: const VisualDensity(vertical: -1),
+    );
+  }
+}
+
+// ── Greeting ──────────────────────────────────────────────────────────
+class _Greeting extends StatelessWidget {
+  const _Greeting();
+
+  /// Customer name — comes from the profile once accounts are wired up.
+  static const String customerName = 'Rupali';
+
+  String get _timeOfDay {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _kPad),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$_timeOfDay,',
+              style: const TextStyle(
+                  fontSize: 12.5, color: AppColors.body, height: 1.2)),
+          const SizedBox(height: 1),
+          Row(
+            children: const [
+              Text('$customerName ',
+                  style: TextStyle(
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                      height: 1.15)),
+              Text('👋', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: 2),
+          const Text('Stay Hydrated, Stay Healthy 💧',
+              style: TextStyle(fontSize: 11.5, color: AppColors.body)),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Wallet balance + pending dues ─────────────────────────────────────
+class _WalletDuesRow extends StatelessWidget {
+  const _WalletDuesRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _kPad),
+      // IntrinsicHeight gives the Row a bounded height so both cards can
+      // stretch to match — a bare `stretch` would be unbounded in a scroll view.
+      child: IntrinsicHeight(
+        child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _MoneyCard(
+              icon: Icons.account_balance_wallet_rounded,
+              iconBg: AppColors.tint,
+              iconColor: AppColors.brand,
+              title: 'Wallet Balance',
+              titleColor: AppColors.brand,
+              amount: '₹650',
+              paise: '.00',
+              action: 'Add Money',
+              actionFilled: true,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _MoneyCard(
+              icon: Icons.receipt_long_rounded,
+              iconBg: Color(0xFFFDECEC),
+              iconColor: Color(0xFFE23D3D),
+              title: 'Pending Dues',
+              titleColor: Color(0xFFE23D3D),
+              amount: '₹150',
+              paise: '.00',
+              action: 'View Details',
+              actionFilled: false,
+            ),
+          ),
+        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MoneyCard extends StatelessWidget {
+  const _MoneyCard({
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    required this.title,
+    required this.titleColor,
+    required this.amount,
+    required this.paise,
+    required this.action,
+    required this.actionFilled,
+  });
+
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final String title;
+  final Color titleColor;
+  final String amount;
+  final String paise;
+  final String action;
+  final bool actionFilled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                height: 30,
+                width: 30,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Icon(icon, size: 17, color: iconColor),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: titleColor)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(amount,
+                  style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textDark,
+                      height: 1.1)),
+              Text(paise,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.body)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 34,
+            width: double.infinity,
+            child: actionFilled
+                ? ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.brand,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(action,
+                            style: const TextStyle(
+                                fontSize: 11.5, fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.add_circle_outline, size: 13),
+                      ],
+                    ),
+                  )
+                : OutlinedButton(
+                    onPressed: () {},
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFE23D3D),
+                      side: const BorderSide(color: Color(0x55E23D3D)),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(action,
+                            style: const TextStyle(
+                                fontSize: 11.5, fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_forward, size: 13),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Trust strip ───────────────────────────────────────────────────────
+class _TrustStrip extends StatelessWidget {
+  const _TrustStrip();
+
+  static const _items = [
+    (Icons.verified_user_outlined, '100% Pure\n& Safe'),
+    (Icons.local_shipping_outlined, 'On-Time\nDelivery'),
+    (Icons.sync_rounded, 'Easy\nReturns'),
+    (Icons.workspace_premium_outlined, 'Best Price\nGuaranteed'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _kPad),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+        decoration: BoxDecoration(
+          color: AppColors.offerBg,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            for (var i = 0; i < _items.length; i++) ...[
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(_items[i].$1, size: 19, color: AppColors.brand),
+                    const SizedBox(height: 5),
+                    Text(
+                      _items[i].$2,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.body,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (i != _items.length - 1)
+                Container(
+                  width: 1,
+                  height: 30,
+                  color: Colors.black.withValues(alpha: 0.07),
+                ),
+            ],
           ],
         ),
       ),
