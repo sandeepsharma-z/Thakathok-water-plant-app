@@ -1,33 +1,36 @@
 @import "tailwindcss";
 
-/* ThakaThok / Mahalakshmi Water Plant — same palette as the Flutter app. */
+/* ThakaThok / Mahalakshmi Water Plant — premium water theme. */
 @theme {
   /* Brand */
   --color-brand: #004fda;
-  --color-brand-dark: #0b4da2;
+  --color-brand-dark: #0b3aa2;
   --color-brand-light: #3e93f5;
+  --color-brand-accent: #37b6ff;
+  --color-aqua: #00c2ff;
 
   /* Surfaces */
-  --color-canvas: #f5f9ff;
+  --color-canvas: #eef5ff;
   --color-surface: #ffffff;
   --color-tint: #ebf4fd;
+  --color-tint-strong: #d8e9ff;
 
   /* Ink */
-  --color-ink: #0e2a47;
-  --color-ink-body: #484c52;
+  --color-ink: #0b2545;
+  --color-ink-body: #45536b;
   --color-ink-muted: #6b7c93;
-  --color-ink-faint: #9aa1ac;
+  --color-ink-faint: #9aa8bd;
 
   /* Lines */
-  --color-line: #e6edf7;
+  --color-line: #e2ebf8;
 
   /* Reserved status colours — always paired with an icon + label */
-  --color-ok: #166b40;
-  --color-ok-bg: #eaf7ef;
-  --color-warn: #8a5200;
-  --color-warn-bg: #fff4e5;
-  --color-danger: #d32020;
-  --color-danger-bg: #fdecec;
+  --color-ok: #12855a;
+  --color-ok-bg: #e7f8f0;
+  --color-warn: #b26a00;
+  --color-warn-bg: #fff4e2;
+  --color-danger: #d92d54;
+  --color-danger-bg: #fdecef;
 
   --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 }
@@ -38,41 +41,123 @@ body {
   color: var(--color-ink);
 }
 
-/* Columns of numbers align; standalone big numbers stay proportional. */
 .tnum {
   font-variant-numeric: tabular-nums;
 }
 
 ::selection {
-  background: #cfe0ff;
+  background: #bcd7ff;
   color: #002a75;
 }
 
+/* ── Reusable visual utilities ─────────────────────────────────────── */
+
+/* Frosted-glass panel */
+.glass {
+  background: color-mix(in srgb, #ffffff 72%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+/* Brand gradient text */
+.text-gradient {
+  background: linear-gradient(100deg, #004fda 0%, #00a2ff 55%, #37b6ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Soft elevated card shadow */
+.shadow-soft {
+  box-shadow:
+    0 1px 2px rgba(11, 37, 69, 0.04),
+    0 10px 30px -14px rgba(11, 37, 69, 0.18);
+}
+.shadow-float {
+  box-shadow:
+    0 2px 4px rgba(11, 37, 69, 0.05),
+    0 24px 48px -22px rgba(11, 37, 69, 0.34);
+}
+
+/* ── Keyframes ─────────────────────────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-22px) translateX(10px); }
+}
+@keyframes bubbleUp {
+  0% { transform: translateY(0) scale(0.7); opacity: 0; }
+  15% { opacity: 0.7; }
+  100% { transform: translateY(-120px) scale(1.05); opacity: 0; }
+}
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 79, 218, 0.35); }
+  50% { box-shadow: 0 0 0 14px rgba(0, 79, 218, 0); }
+}
+@keyframes spinSlow {
+  to { transform: rotate(360deg); }
+}
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-float-slow { animation: floatSlow 9s ease-in-out infinite; }
+.animate-gradient {
+  background-size: 220% 220%;
+  animation: gradientShift 14s ease infinite;
+}
+.animate-pulse-glow { animation: pulseGlow 2.6s ease-out infinite; }
+.animate-spin-slow { animation: spinSlow 22s linear infinite; }
+
+/* Shimmer sweep overlay (for loading / hover shine) */
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.45),
+    transparent
+  );
+  animation: shimmer 2.2s infinite;
+}
+
+/* Rising bubbles decoration */
+.bubble {
+  position: absolute;
+  bottom: -20px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.5);
+  animation: bubbleUp linear infinite;
+}
+
+/* Recessive scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c7d7ee transparent;
+  scrollbar-color: #bcd0ec transparent;
 }
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-thumb {
-  background: #c7d7ee;
+  background: #bcd0ec;
   border-radius: 8px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
   }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.animate-rise {
-  animation: rise 0.35s ease both;
 }

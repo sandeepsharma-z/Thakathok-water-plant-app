@@ -7,7 +7,7 @@ import type { Booking, BookingStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const TABS: { key: string; label: string }[] = [
+const TABS = [
   { key: "pending", label: "Pending" },
   { key: "confirmed", label: "Confirmed" },
   { key: "cancelled", label: "Cancelled" },
@@ -32,7 +32,7 @@ export default async function BookingsPage({
   return (
     <>
       <header>
-        <h1 className="text-[26px] font-extrabold tracking-tight text-ink">
+        <h1 className="text-[27px] font-extrabold tracking-tight text-ink">
           Bookings
         </h1>
         <p className="mt-1 text-[13px] text-ink-muted">
@@ -40,7 +40,6 @@ export default async function BookingsPage({
         </p>
       </header>
 
-      {/* Filters — one row above the content */}
       <div className="mt-5 flex flex-wrap gap-2">
         {TABS.map((t) => {
           const on = t.key === active;
@@ -51,7 +50,7 @@ export default async function BookingsPage({
               aria-current={on ? "page" : undefined}
               className={`rounded-full px-4 py-2 text-[12.5px] font-semibold transition ${
                 on
-                  ? "bg-brand text-white shadow-[0_8px_18px_-10px_rgba(0,79,218,0.9)]"
+                  ? "bg-gradient-to-r from-[#004fda] to-[#2e8bf0] text-white shadow-[0_10px_20px_-10px_rgba(0,79,218,0.9)]"
                   : "border border-line bg-surface text-ink-body hover:bg-tint"
               }`}
             >
@@ -64,7 +63,7 @@ export default async function BookingsPage({
       {error ? (
         <Card className="mt-5">
           <EmptyState
-            icon={<span className="text-2xl">⚠</span>}
+            icon="alert"
             title="Could not load bookings"
             body="Check the connection, and make sure the database tables have been created by running supabase/schema.sql."
           />
@@ -72,15 +71,15 @@ export default async function BookingsPage({
       ) : bookings.length === 0 ? (
         <Card className="mt-5">
           <EmptyState
-            icon={<span className="text-2xl">☰</span>}
+            icon="clipboard"
             title={`No ${active === "all" ? "" : active} bookings`}
             body="New enquiries from the app will appear here as soon as customers place them."
           />
         </Card>
       ) : (
         <div className="mt-5 grid gap-4">
-          {bookings.map((b) => (
-            <BookingCard key={b.id} booking={b} />
+          {bookings.map((b, i) => (
+            <BookingCard key={b.id} booking={b} index={i} />
           ))}
         </div>
       )}

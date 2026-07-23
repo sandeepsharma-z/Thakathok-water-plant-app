@@ -16,7 +16,7 @@ export default async function SettingsPage() {
   return (
     <>
       <header>
-        <h1 className="text-[26px] font-extrabold tracking-tight text-ink">
+        <h1 className="text-[27px] font-extrabold tracking-tight text-ink">
           Rates &amp; Charges
         </h1>
         <p className="mt-1 text-[13px] text-ink-muted">
@@ -27,7 +27,7 @@ export default async function SettingsPage() {
       {error || !data ? (
         <Card className="mt-6">
           <EmptyState
-            icon={<span className="text-2xl">⚠</span>}
+            icon="alert"
             title="Could not load settings"
             body="Run supabase/schema.sql in the Supabase SQL Editor to create the tables, then reload this page."
           />
