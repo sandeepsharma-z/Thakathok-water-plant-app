@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import {
+  ArrowRight,
   Droplets,
   Eye,
   EyeOff,
@@ -24,10 +25,13 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="group relative mt-2 h-12 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-[#004fda] to-[#2e8bf0] text-[14px] font-bold tracking-wide text-white shadow-[0_14px_30px_-12px_rgba(0,79,218,0.8)] transition hover:brightness-105 disabled:opacity-70"
+      className="group relative mt-2 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#004fda] to-[#2e8bf0] text-[14px] font-bold tracking-wide text-white shadow-[0_14px_30px_-12px_rgba(0,79,218,0.8)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_36px_-12px_rgba(0,79,218,0.9)] hover:brightness-105 active:translate-y-0 disabled:opacity-70"
     >
       <span className="shimmer absolute inset-0" />
       <span className="relative">{pending ? "Signing in…" : "LOGIN"}</span>
+      {!pending && (
+        <ArrowRight className="relative h-4 w-4 transition-transform group-hover:translate-x-1" />
+      )}
     </button>
   );
 }
@@ -67,8 +71,8 @@ export default function LoginPage() {
             transition={{ duration: 0.6 }}
             className="flex items-center gap-3"
           >
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white/15 backdrop-blur-md ring-1 ring-white/25">
-              <Image src="/logo.png" alt="" width={30} height={30} />
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white shadow-lg ring-1 ring-white/40">
+              <Image src="/logo.png" alt="" width={32} height={32} />
             </div>
             <div>
               <p className="text-[16px] font-extrabold leading-tight text-white">

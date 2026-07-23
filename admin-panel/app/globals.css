@@ -45,6 +45,19 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Tailwind v4 dropped the default pointer cursor on buttons — restore it. */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+a[href],
+label[for],
+select:not(:disabled),
+summary {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
 ::selection {
   background: #bcd7ff;
   color: #002a75;
