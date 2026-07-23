@@ -54,8 +54,8 @@ export function Sidebar({ name }: { name: string }) {
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col overflow-hidden bg-[linear-gradient(180deg,#1668e6_0%,#0f57cc_55%,#0b49ad_100%)] lg:flex">
       {/* logo */}
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/15 ring-1 ring-white/20">
-          <Image src="/logo.png" alt="" width={26} height={26} />
+        <div className="grid h-11 w-11 place-items-center rounded-xl bg-white shadow-md ring-1 ring-white/40">
+          <Image src="/logo.png" alt="" width={30} height={30} />
         </div>
         <div>
           <p className="text-[16px] font-extrabold leading-tight text-white">
@@ -91,51 +91,48 @@ export function Sidebar({ name }: { name: string }) {
         })}
       </nav>
 
-      {/* total branches */}
-      <div className="px-3">
-        <div className="flex items-center justify-between rounded-2xl bg-white/12 px-4 py-3 ring-1 ring-white/15">
+      {/* water splash — sits BEHIND the bottom cards (screen blend drops black) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-32"
+        style={{
+          backgroundImage: "url(/water-splash.png)",
+          backgroundSize: "cover",
+          backgroundPosition: "center bottom",
+          mixBlendMode: "screen",
+          opacity: 0.55,
+        }}
+      />
+
+      {/* bottom cards — frosted blue panels so text stays readable over the splash */}
+      <div className="relative z-10 mt-2 space-y-3 px-3 pb-3">
+        <div className="flex items-center justify-between rounded-2xl bg-[#0e54c8]/80 px-4 py-3 shadow-lg ring-1 ring-white/20 backdrop-blur-md">
           <div>
-            <p className="text-[10.5px] text-white/70">Total Branches</p>
+            <p className="text-[10.5px] text-white/75">Total Branches</p>
             <p className="text-[20px] font-extrabold leading-none text-white">07</p>
           </div>
-          <Building2 className="h-7 w-7 text-white/85" />
+          <Building2 className="h-7 w-7 text-white/90" />
         </div>
-      </div>
 
-      {/* user */}
-      <div className="relative mt-3 px-3 pb-3">
-        <div className="flex items-center gap-2.5 border-t border-white/15 pt-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/20 text-[13px] font-bold text-white ring-1 ring-white/25">
+        <div className="flex items-center gap-2.5 rounded-2xl bg-[#0e54c8]/80 px-3 py-2.5 shadow-lg ring-1 ring-white/15 backdrop-blur-md">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/25 text-[13px] font-bold text-white ring-1 ring-white/30">
             {name.slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12.5px] font-bold text-white">{name}</p>
-            <p className="text-[10.5px] text-white/70">Super Admin</p>
+            <p className="text-[10.5px] text-white/75">Super Admin</p>
           </div>
           <form action={signOut}>
             <button
               type="submit"
               title="Sign out"
-              className="grid h-8 w-8 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+              className="grid h-8 w-8 place-items-center rounded-lg text-white/80 hover:bg-white/15 hover:text-white"
             >
               <MoreVertical className="h-4 w-4" />
             </button>
           </form>
         </div>
       </div>
-
-      {/* water splash at the very bottom — black bg drops out on screen blend */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-28"
-        style={{
-          backgroundImage: "url(/water-splash.png)",
-          backgroundSize: "cover",
-          backgroundPosition: "center bottom",
-          mixBlendMode: "screen",
-          opacity: 0.9,
-        }}
-      />
     </aside>
   );
 }
