@@ -24,7 +24,7 @@ export default async function AppLayout({
       />
       <Nav email={user.email ?? ""} />
       <main className="pb-24 lg:pb-10 lg:pl-[256px]">
-        <div className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-10 lg:py-7">
           {children}
         </div>
       </main>

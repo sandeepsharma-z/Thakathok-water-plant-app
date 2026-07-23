@@ -124,9 +124,6 @@ function Head() {
       <h1 className="text-[27px] font-extrabold tracking-tight text-ink">
         Dashboard
       </h1>
-      <p className="mt-1 text-[13px] text-ink-muted">
-        Today&apos;s bookings at a glance.
-      </p>
     </header>
   );
 }
