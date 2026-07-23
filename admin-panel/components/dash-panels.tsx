@@ -169,21 +169,25 @@ export function CansSummary({
     { label: "Total bookings", value: bookings, color: "#2f7cf6" },
   ];
   return (
-    <div className="rounded-2xl border border-line bg-surface p-5 shadow-soft">
+    <div className="flex min-h-[300px] flex-col rounded-2xl border border-line bg-surface p-5 shadow-soft">
       <h3 className="mb-4 text-[15px] font-bold text-ink">Cans Booked</h3>
-      <div className="flex flex-col items-center gap-6 sm:flex-row">
-        <div className="relative grid h-[150px] w-[150px] shrink-0 place-items-center">
-          <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#37b6ff,#2f7cf6,#00c2ff,#37b6ff)] opacity-90 blur-[1px]" />
-          <div className="absolute inset-[10px] rounded-full bg-surface" />
-          <div className="absolute inset-[6px] rounded-full ring-2 ring-[#bfe0ff]" />
+      <div className="flex flex-1 flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
+        {/* transparent water-ring image with the total in the centre */}
+        <div className="relative grid h-[210px] w-[210px] shrink-0 place-items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/water-ring.png"
+            alt=""
+            className="absolute inset-0 h-full w-full object-contain drop-shadow-[0_8px_18px_rgba(47,124,246,0.25)]"
+          />
           <div className="relative text-center">
-            <p className="text-[26px] font-extrabold leading-none text-ink">
+            <p className="text-[32px] font-extrabold leading-none text-ink">
               {total.toLocaleString("en-IN")}
             </p>
-            <p className="text-[12px] text-ink-muted">Total Cans</p>
+            <p className="mt-1 text-[12.5px] text-ink-muted">Total Cans</p>
           </div>
         </div>
-        <ul className="flex-1 space-y-2.5">
+        <ul className="w-full max-w-[240px] space-y-3">
           {rows.map((r) => (
             <li key={r.label} className="flex items-center justify-between">
               <span className="flex items-center gap-2 text-[12.5px] text-ink-body">
