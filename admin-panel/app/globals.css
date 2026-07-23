@@ -41,6 +41,25 @@ body {
   color: var(--color-ink);
 }
 
+/* ── Dark theme — override the surface/ink tokens; accent chips stay ── */
+.dark {
+  color-scheme: dark;
+  --color-brand: #5b9bff;
+  --color-brand-dark: #3e7fe0;
+
+  --color-canvas: #0b1220;
+  --color-surface: #131d31;
+  --color-tint: #1b2942;
+  --color-tint-strong: #24365a;
+
+  --color-ink: #eaf0fc;
+  --color-ink-body: #b8c4da;
+  --color-ink-muted: #8b99b2;
+  --color-ink-faint: #6b7a93;
+
+  --color-line: #26344c;
+}
+
 .tnum {
   font-variant-numeric: tabular-nums;
 }

@@ -45,7 +45,13 @@ const ITEMS: Item[] = [
   { label: "Support", href: "#", Icon: HeadphonesIcon },
 ];
 
-export function Sidebar({ name }: { name: string }) {
+export function Sidebar({
+  name,
+  avatarUrl,
+}: {
+  name: string;
+  avatarUrl?: string | null;
+}) {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : href !== "#" && pathname.startsWith(href);
@@ -115,13 +121,21 @@ export function Sidebar({ name }: { name: string }) {
         </div>
 
         <div className="flex items-center gap-2.5 rounded-2xl bg-[#0e54c8]/80 px-3 py-2.5 shadow-lg ring-1 ring-white/15 backdrop-blur-md">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/25 text-[13px] font-bold text-white ring-1 ring-white/30">
-            {name.slice(0, 1).toUpperCase()}
-          </div>
-          <div className="min-w-0 flex-1">
+          <Link
+            href="/profile"
+            className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-white/25 text-[13px] font-bold text-white ring-1 ring-white/30"
+          >
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              name.slice(0, 1).toUpperCase()
+            )}
+          </Link>
+          <Link href="/profile" className="min-w-0 flex-1">
             <p className="truncate text-[12.5px] font-bold text-white">{name}</p>
             <p className="text-[10.5px] text-white/75">Super Admin</p>
-          </div>
+          </Link>
           <form action={signOut}>
             <button
               type="submit"

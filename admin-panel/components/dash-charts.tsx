@@ -4,8 +4,9 @@ import { motion } from "framer-motion";
 import {
   ArrowDownRight,
   ArrowUpRight,
-  Droplet,
-  IndianRupee,
+  CalendarClock,
+  CheckCircle2,
+  Clock,
   Package,
   TriangleAlert,
   Wallet,
@@ -25,23 +26,36 @@ import {
   YAxis,
 } from "recharts";
 
-import { ORDER_STATUS, ORDERS_TREND, STATS } from "@/lib/dashboard-data";
-
 const STAT_ICONS: Record<string, LucideIcon> = {
-  orders: Package,
-  revenue: Droplet,
-  collections: Wallet,
+  total: Package,
+  confirmed: CheckCircle2,
+  pending: Clock,
+  wallet: Wallet,
   dues: TriangleAlert,
-  cans: Droplet,
+  upcoming: CalendarClock,
 };
 
-/* ── 5 stat cards with sparklines ─────────────────────────────────── */
-export function StatCards() {
+export type StatCard = {
+  key: string;
+  label: string;
+  value: string;
+  sub: string;
+  deltaPct?: number;
+  icon: string;
+  color: string;
+  tint: string;
+  spark: number[];
+};
+
+/* ── stat cards with sparklines ───────────────────────────────────── */
+export function StatCards({ cards }: { cards: StatCard[] }) {
   return (
     <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-      {STATS.map((s, i) => {
+      {cards.map((s, i) => {
         const Icon = STAT_ICONS[s.icon] ?? Package;
         const data = s.spark.map((v, x) => ({ x, v }));
+        const hasDelta = typeof s.deltaPct === "number";
+        const up = (s.deltaPct ?? 0) >= 0;
         return (
           <motion.div
             key={s.key}
@@ -51,32 +65,34 @@ export function StatCards() {
             className="rounded-2xl border border-line bg-surface p-4 shadow-soft"
           >
             <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[12px] text-ink-muted">{s.label}</p>
+              <div className="min-w-0">
+                <p className="truncate text-[12px] text-ink-muted">{s.label}</p>
                 <p className="mt-1 text-[22px] font-extrabold text-ink">
                   {s.value}
                 </p>
               </div>
               <span
-                className="grid h-10 w-10 place-items-center rounded-xl"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
                 style={{ background: s.tint, color: s.color }}
               >
                 <Icon className="h-5 w-5" />
               </span>
             </div>
             <div className="mt-1 flex items-center gap-1 text-[11.5px] font-semibold">
-              <span
-                className="inline-flex items-center"
-                style={{ color: s.up ? "#1aa971" : "#ef4b6c" }}
-              >
-                {s.up ? (
-                  <ArrowUpRight className="h-3.5 w-3.5" />
-                ) : (
-                  <ArrowDownRight className="h-3.5 w-3.5" />
-                )}
-                {s.delta}
-              </span>
-              <span className="text-ink-faint">from yesterday</span>
+              {hasDelta ? (
+                <span
+                  className="inline-flex items-center"
+                  style={{ color: up ? "#1aa971" : "#ef4b6c" }}
+                >
+                  {up ? (
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowDownRight className="h-3.5 w-3.5" />
+                  )}
+                  {Math.abs(s.deltaPct!)}%
+                </span>
+              ) : null}
+              <span className="truncate text-ink-faint">{s.sub}</span>
             </div>
             <div className="-mb-1 mt-1 h-10 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -105,12 +121,16 @@ export function StatCards() {
   );
 }
 
-/* ── Orders overview line chart ───────────────────────────────────── */
-export function OrdersOverview() {
+/* ── bookings overview line chart ─────────────────────────────────── */
+export function BookingsOverview({
+  trend,
+}: {
+  trend: { day: string; bookings: number; confirmed: number }[];
+}) {
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={ORDERS_TREND} margin={{ top: 12, right: 10, left: -16, bottom: 0 }}>
+        <LineChart data={trend} margin={{ top: 12, right: 10, left: -16, bottom: 0 }}>
           <XAxis
             dataKey="day"
             tickLine={false}
@@ -119,24 +139,24 @@ export function OrdersOverview() {
             dy={8}
           />
           <YAxis
+            allowDecimals={false}
             tickLine={false}
             axisLine={false}
             tick={{ fontSize: 11, fill: "#9aa8bd" }}
-            ticks={[0, 200, 400, 600, 800, 1000]}
-            tickFormatter={(v) => (v === 1000 ? "1K" : `${v}`)}
           />
           <Tooltip
             contentStyle={{
               borderRadius: 12,
-              border: "1px solid #e2ebf8",
+              border: "1px solid var(--color-line)",
+              background: "var(--color-surface)",
               fontSize: 12,
               boxShadow: "0 12px 28px -12px rgba(11,37,69,0.28)",
             }}
           />
           <Line
             type="monotone"
-            dataKey="orders"
-            name="Orders"
+            dataKey="bookings"
+            name="Bookings"
             stroke="#2f7cf6"
             strokeWidth={2.5}
             dot={{ r: 3.5, fill: "#2f7cf6", strokeWidth: 0 }}
@@ -144,8 +164,8 @@ export function OrdersOverview() {
           />
           <Line
             type="monotone"
-            dataKey="delivered"
-            name="Delivered"
+            dataKey="confirmed"
+            name="Confirmed"
             stroke="#1aa971"
             strokeWidth={2.5}
             dot={{ r: 3.5, fill: "#1aa971", strokeWidth: 0 }}
@@ -157,16 +177,27 @@ export function OrdersOverview() {
   );
 }
 
-/* ── Orders by status donut ───────────────────────────────────────── */
-export function OrdersStatusDonut() {
-  const total = ORDER_STATUS.reduce((s, d) => s + d.value, 0);
+/* ── bookings by status donut ─────────────────────────────────────── */
+export function StatusDonut({
+  data,
+}: {
+  data: { name: string; value: number; color: string }[];
+}) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total === 0) {
+    return (
+      <div className="grid h-[220px] place-items-center text-[13px] text-ink-faint">
+        No bookings yet
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-center gap-5 sm:flex-row">
       <div className="relative h-[190px] w-[190px] shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
-              data={ORDER_STATUS}
+              data={data}
               dataKey="value"
               nameKey="name"
               innerRadius={62}
@@ -176,12 +207,17 @@ export function OrdersStatusDonut() {
               startAngle={90}
               endAngle={-270}
             >
-              {ORDER_STATUS.map((s) => (
+              {data.map((s) => (
                 <Cell key={s.name} fill={s.color} />
               ))}
             </Pie>
             <Tooltip
-              contentStyle={{ borderRadius: 12, border: "1px solid #e2ebf8", fontSize: 12 }}
+              contentStyle={{
+                borderRadius: 12,
+                border: "1px solid var(--color-line)",
+                background: "var(--color-surface)",
+                fontSize: 12,
+              }}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -195,7 +231,7 @@ export function OrdersStatusDonut() {
         </div>
       </div>
       <ul className="flex-1 space-y-3">
-        {ORDER_STATUS.map((s) => (
+        {data.map((s) => (
           <li key={s.name} className="flex items-start gap-2.5">
             <span
               className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full"
@@ -204,7 +240,7 @@ export function OrdersStatusDonut() {
             <div>
               <p className="text-[13px] font-semibold text-ink">{s.name}</p>
               <p className="text-[12px] text-ink-muted">
-                {s.value} ({s.pct})
+                {s.value} ({total ? Math.round((s.value / total) * 100) : 0}%)
               </p>
             </div>
           </li>
