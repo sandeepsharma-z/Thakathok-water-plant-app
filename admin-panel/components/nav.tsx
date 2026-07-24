@@ -3,7 +3,6 @@
 import {
   Activity,
   Bell,
-  Building2,
   ChevronRight,
   Droplet,
   FileBarChart,
@@ -11,6 +10,7 @@ import {
   HeadphonesIcon,
   LayoutDashboard,
   LifeBuoy,
+  MapPin,
   MoreVertical,
   Package,
   Settings,
@@ -48,9 +48,11 @@ const ITEMS: Item[] = [
 export function Sidebar({
   name,
   avatarUrl,
+  villages = 0,
 }: {
   name: string;
   avatarUrl?: string | null;
+  villages?: number;
 }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
@@ -114,10 +116,12 @@ export function Sidebar({
       <div className="relative z-10 mt-2 space-y-3 px-3 pb-3">
         <div className="flex items-center justify-between rounded-2xl bg-[#0e54c8]/80 px-4 py-3 shadow-lg ring-1 ring-white/20 backdrop-blur-md dark:bg-white/8 dark:ring-white/10">
           <div>
-            <p className="text-[10.5px] text-white/75">Total Branches</p>
-            <p className="text-[20px] font-extrabold leading-none text-white">07</p>
+            <p className="text-[10.5px] text-white/75">Villages Served</p>
+            <p className="text-[20px] font-extrabold leading-none text-white">
+              {villages.toString().padStart(2, "0")}
+            </p>
           </div>
-          <Building2 className="h-7 w-7 text-white/90" />
+          <MapPin className="h-7 w-7 text-white/90" />
         </div>
 
         <div className="flex items-center gap-2.5 rounded-2xl bg-[#0e54c8]/80 px-3 py-2.5 shadow-lg ring-1 ring-white/15 backdrop-blur-md dark:bg-white/8 dark:ring-white/10">

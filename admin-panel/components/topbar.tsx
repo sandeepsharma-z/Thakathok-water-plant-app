@@ -10,11 +10,13 @@ export function Topbar({
   name,
   subtitle,
   avatarUrl,
+  notifications = 0,
 }: {
   title: string;
   name: string;
   subtitle?: string;
   avatarUrl?: string | null;
+  notifications?: number;
 }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -69,9 +71,11 @@ export function Topbar({
           </button>
           <button className="relative grid h-11 w-11 place-items-center rounded-xl border border-line bg-surface text-ink-body shadow-soft">
             <Bell className="h-[18px] w-[18px]" />
-            <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#ef4b6c] px-1 text-[9px] font-bold text-white">
-              6
-            </span>
+            {notifications > 0 ? (
+              <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#ef4b6c] px-1 text-[9px] font-bold text-white">
+                {notifications > 9 ? "9+" : notifications}
+              </span>
+            ) : null}
           </button>
           <button
             onClick={() => setTheme(isDark ? "light" : "dark")}

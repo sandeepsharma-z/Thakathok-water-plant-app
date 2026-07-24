@@ -77,7 +77,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <Topbar title="Dashboard" name={profile.name} avatarUrl={profile.avatarUrl} />
+      <Topbar
+        title="Dashboard"
+        name={profile.name}
+        avatarUrl={profile.avatarUrl}
+        notifications={d.counts.pending}
+      />
 
       {!d.ok ? (
         <div className="rounded-2xl border border-line bg-surface p-5 text-[13px] text-ink-muted shadow-soft">

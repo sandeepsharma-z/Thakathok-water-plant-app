@@ -18,9 +18,17 @@ export default async function AppLayout({
 
   const profile = await getProfile();
 
+  // Real "villages served" count from the bookings table.
+  const { data: villageRows } = await supabase.from("bookings").select("village");
+  const villages = new Set((villageRows ?? []).map((r) => r.village)).size;
+
   return (
     <div className="relative min-h-dvh bg-canvas">
-      <Sidebar name={profile.name} avatarUrl={profile.avatarUrl} />
+      <Sidebar
+        name={profile.name}
+        avatarUrl={profile.avatarUrl}
+        villages={villages}
+      />
       <MobileBar name={profile.name} />
       <main className="pb-10 lg:pl-[250px]">
         <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-7 lg:py-6">
