@@ -108,7 +108,7 @@ export function TopVillages({
   max: number;
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-surface p-5 shadow-soft">
+    <div className="h-full rounded-2xl border border-line bg-surface p-5 shadow-soft">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-[15px] font-bold text-ink">Top Villages</h3>
         <span className="rounded-lg border border-line px-2.5 py-1 text-[11.5px] font-semibold text-ink-muted">
@@ -169,11 +169,11 @@ export function CansSummary({
     { label: "Total bookings", value: bookings, color: "#2f7cf6" },
   ];
   return (
-    <div className="flex min-h-[340px] flex-col rounded-2xl border border-line bg-surface p-5 shadow-soft">
+    <div className="flex h-full flex-col rounded-2xl border border-line bg-surface p-5 shadow-soft">
       <h3 className="mb-4 text-[15px] font-bold text-ink">Cans Booked</h3>
       <div className="flex flex-1 flex-col items-center gap-6 sm:flex-row sm:justify-center sm:gap-10">
         {/* transparent water-ring image with the total in the centre */}
-        <div className="relative grid h-[270px] w-[270px] shrink-0 place-items-center">
+        <div className="relative grid h-[230px] w-[230px] shrink-0 place-items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/water-ring.png"
@@ -181,7 +181,7 @@ export function CansSummary({
             className="absolute inset-0 h-full w-full object-contain drop-shadow-[0_8px_18px_rgba(47,124,246,0.25)]"
           />
           <div className="relative text-center">
-            <p className="text-[36px] font-extrabold leading-none text-ink">
+            <p className="text-[34px] font-extrabold leading-none text-ink">
               {total.toLocaleString("en-IN")}
             </p>
             <p className="mt-1 text-[13px] text-ink-muted">Total Cans</p>
