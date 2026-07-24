@@ -57,7 +57,7 @@ export function Sidebar({
     href === "/" ? pathname === "/" : href !== "#" && pathname.startsWith(href);
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col overflow-hidden bg-[linear-gradient(180deg,#1668e6_0%,#0f57cc_55%,#0b49ad_100%)] lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col overflow-hidden bg-[linear-gradient(180deg,#1668e6_0%,#0f57cc_55%,#0b49ad_100%)] lg:flex dark:bg-[linear-gradient(180deg,#12213e_0%,#0d1a30_55%,#0a1424_100%)] dark:ring-1 dark:ring-white/5">
       {/* logo */}
       <div className="flex items-center gap-2.5 px-5 py-5">
         <div className="grid h-11 w-11 place-items-center rounded-xl bg-white shadow-md ring-1 ring-white/40">
@@ -112,7 +112,7 @@ export function Sidebar({
 
       {/* bottom cards — frosted blue panels so text stays readable over the splash */}
       <div className="relative z-10 mt-2 space-y-3 px-3 pb-3">
-        <div className="flex items-center justify-between rounded-2xl bg-[#0e54c8]/80 px-4 py-3 shadow-lg ring-1 ring-white/20 backdrop-blur-md">
+        <div className="flex items-center justify-between rounded-2xl bg-[#0e54c8]/80 px-4 py-3 shadow-lg ring-1 ring-white/20 backdrop-blur-md dark:bg-white/8 dark:ring-white/10">
           <div>
             <p className="text-[10.5px] text-white/75">Total Branches</p>
             <p className="text-[20px] font-extrabold leading-none text-white">07</p>
@@ -120,7 +120,7 @@ export function Sidebar({
           <Building2 className="h-7 w-7 text-white/90" />
         </div>
 
-        <div className="flex items-center gap-2.5 rounded-2xl bg-[#0e54c8]/80 px-3 py-2.5 shadow-lg ring-1 ring-white/15 backdrop-blur-md">
+        <div className="flex items-center gap-2.5 rounded-2xl bg-[#0e54c8]/80 px-3 py-2.5 shadow-lg ring-1 ring-white/15 backdrop-blur-md dark:bg-white/8 dark:ring-white/10">
           <Link
             href="/profile"
             className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-white/25 text-[13px] font-bold text-white ring-1 ring-white/30"

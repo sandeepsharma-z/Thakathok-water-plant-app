@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (next-themes adds `.dark` on <html>). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ThakaThok / Mahalakshmi Water Plant — premium water theme. */
 @theme {
   /* Brand */
