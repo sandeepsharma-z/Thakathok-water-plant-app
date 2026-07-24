@@ -1,11 +1,21 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Bell, CalendarDays, Check, Moon, Search, Sun } from "lucide-react";
+import {
+  Bell,
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Moon,
+  Search,
+  Sun,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+
+import { RANGE_PRESETS, rangeLabel, type RangeKey } from "@/lib/date-range";
 
 const rupee = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -24,6 +34,7 @@ export function Topbar({
   avatarUrl,
   notifications = 0,
   pendingItems = [],
+  range = "7d",
 }: {
   title: string;
   name: string;
@@ -31,33 +42,33 @@ export function Topbar({
   avatarUrl?: string | null;
   notifications?: number;
   pendingItems?: PendingItem[];
+  range?: RangeKey;
 }) {
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [bellOpen, setBellOpen] = useState(false);
+  const [rangeOpen, setRangeOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
+  const rangeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
   const isDark = mounted && resolvedTheme === "dark";
 
-  // close the bell dropdown on outside click
+  // close dropdowns on outside click
   useEffect(() => {
     function onDoc(e: MouseEvent) {
       if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
         setBellOpen(false);
       }
+      if (rangeRef.current && !rangeRef.current.contains(e.target as Node)) {
+        setRangeOpen(false);
+      }
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
-
-  const today = new Date().toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -109,10 +120,46 @@ export function Topbar({
         </form>
 
         <div className="order-2 flex items-center gap-2.5 lg:order-3">
-          <button className="hidden h-11 items-center gap-2 rounded-xl border border-line bg-surface px-3.5 text-[12.5px] font-semibold text-ink-body shadow-soft sm:flex">
-            <CalendarDays className="h-4 w-4 text-brand" />
-            {today}
-          </button>
+          {/* date-range filter */}
+          <div ref={rangeRef} className="relative hidden sm:block">
+            <button
+              onClick={() => setRangeOpen((o) => !o)}
+              className="flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-3.5 text-[12.5px] font-semibold text-ink-body shadow-soft"
+            >
+              <CalendarDays className="h-4 w-4 text-brand" />
+              {rangeLabel(range)}
+              <ChevronDown
+                className={`h-4 w-4 text-ink-faint transition ${rangeOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {rangeOpen ? (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 z-50 mt-2 w-[220px] overflow-hidden rounded-2xl border border-line bg-surface p-1.5 shadow-float"
+              >
+                {RANGE_PRESETS.map((p) => {
+                  const on = p.key === range;
+                  return (
+                    <button
+                      key={p.key}
+                      onClick={() => {
+                        setRangeOpen(false);
+                        router.push(p.key === "7d" ? "/" : `/?range=${p.key}`);
+                      }}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[12.5px] font-semibold transition ${
+                        on ? "bg-tint text-brand" : "text-ink-body hover:bg-tint"
+                      }`}
+                    >
+                      {p.label}
+                      {on ? <Check className="h-4 w-4" /> : null}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            ) : null}
+          </div>
 
           {/* notifications */}
           <div ref={bellRef} className="relative">

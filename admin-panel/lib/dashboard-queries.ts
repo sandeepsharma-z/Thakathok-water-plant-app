@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { normalizeRange, rangeStart } from "@/lib/date-range";
 import type { Booking } from "@/lib/types";
 
 const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -9,16 +10,25 @@ const MON = [
 
 export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
 
-/** All the numbers the dashboard needs, computed from real bulk-order data. */
-export async function getDashboardData() {
+/** All the numbers the dashboard needs, computed from real bulk-order data.
+ *  `range` filters the metrics by created_at; the 7-day trend is always the
+ *  last week (the card is labelled "Last 7 Days"). */
+export async function getDashboardData(rangeKey?: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("bookings")
     .select("*")
     .order("created_at", { ascending: false });
 
-  const bookings = (data ?? []) as Booking[];
+  const all = (data ?? []) as Booking[];
   const ok = !error;
+
+  // Apply the selected date range to everything except the weekly trend.
+  const start = rangeStart(normalizeRange(rangeKey));
+  const startIso = start ? start.toISOString() : null;
+  const bookings = startIso
+    ? all.filter((b) => (b.created_at ?? "") >= startIso)
+    : all;
 
   const pending = bookings.filter((b) => b.status === "pending");
   const confirmed = bookings.filter((b) => b.status === "confirmed");
@@ -38,12 +48,12 @@ export async function getDashboardData() {
     const d = new Date(now);
     d.setDate(now.getDate() - (6 - i));
     const key = d.toISOString().slice(0, 10);
-    const all = bookings.filter((b) => (b.created_at ?? "").slice(0, 10) === key);
+    const dayItems = all.filter((b) => (b.created_at ?? "").slice(0, 10) === key);
     return {
       day: `${d.getDate()} ${MON[d.getMonth()]}`,
       short: DAY[d.getDay()],
-      bookings: all.length,
-      confirmed: all.filter((b) => b.status === "confirmed").length,
+      bookings: dayItems.length,
+      confirmed: dayItems.filter((b) => b.status === "confirmed").length,
     };
   });
 
@@ -51,7 +61,7 @@ export async function getDashboardData() {
   const wtd = trend.reduce((s, t) => s + t.bookings, 0);
   const priorStart = new Date(now);
   priorStart.setDate(now.getDate() - 13);
-  const prior = bookings.filter((b) => {
+  const prior = all.filter((b) => {
     const k = (b.created_at ?? "").slice(0, 10);
     const start = priorStart.toISOString().slice(0, 10);
     const end = new Date(now);

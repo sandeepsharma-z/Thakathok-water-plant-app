@@ -13,12 +13,22 @@ import {
 } from "@/components/dash-panels";
 import { Topbar } from "@/components/topbar";
 import { getDashboardData, rupee } from "@/lib/dashboard-queries";
+import { normalizeRange } from "@/lib/date-range";
 import { getProfile } from "@/lib/profile";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const [d, profile] = await Promise.all([getDashboardData(), getProfile()]);
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string }>;
+}) {
+  const { range } = await searchParams;
+  const activeRange = normalizeRange(range);
+  const [d, profile] = await Promise.all([
+    getDashboardData(activeRange),
+    getProfile(),
+  ]);
   const spark = d.trend.map((t) => t.bookings);
 
   const cards: StatCard[] = [
@@ -83,6 +93,7 @@ export default async function DashboardPage() {
         avatarUrl={profile.avatarUrl}
         notifications={d.counts.pending}
         pendingItems={d.pendingList}
+        range={activeRange}
       />
 
       {!d.ok ? (
