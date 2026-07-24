@@ -23,26 +23,33 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 import { signOut } from "@/app/login/actions";
 
-type Item = { label: string; href: string; Icon: LucideIcon; chevron?: boolean };
+type Item = {
+  label: string;
+  href: string;
+  Icon: LucideIcon;
+  chevron?: boolean;
+  soon?: boolean;
+};
 
 const ITEMS: Item[] = [
   { label: "Dashboard", href: "/", Icon: LayoutDashboard, chevron: true },
   { label: "Orders", href: "/bookings", Icon: ShoppingCart },
-  { label: "Customers", href: "#", Icon: Users },
-  { label: "Delivery Management", href: "#", Icon: Truck, chevron: true },
-  { label: "Cans Management", href: "#", Icon: Package },
-  { label: "Pending Dues", href: "#", Icon: Droplet },
-  { label: "Payments & Collections", href: "#", Icon: Wallet },
-  { label: "Expenses", href: "#", Icon: FileBarChart },
-  { label: "Reports & Analytics", href: "#", Icon: Activity },
-  { label: "Branch Management", href: "#", Icon: GitBranch },
-  { label: "SMS & Notifications", href: "#", Icon: Bell },
+  { label: "Customers", href: "#", Icon: Users, soon: true },
+  { label: "Delivery Management", href: "#", Icon: Truck, soon: true },
+  { label: "Cans Management", href: "#", Icon: Package, soon: true },
+  { label: "Pending Dues", href: "/bookings?status=confirmed", Icon: Droplet },
+  { label: "Payments & Collections", href: "/bookings?status=confirmed", Icon: Wallet },
+  { label: "Expenses", href: "#", Icon: FileBarChart, soon: true },
+  { label: "Reports & Analytics", href: "#", Icon: Activity, soon: true },
+  { label: "Branch Management", href: "#", Icon: GitBranch, soon: true },
+  { label: "SMS & Notifications", href: "#", Icon: Bell, soon: true },
   { label: "Settings", href: "/settings", Icon: Settings },
-  { label: "Activity Logs", href: "#", Icon: LifeBuoy },
-  { label: "Support", href: "#", Icon: HeadphonesIcon },
+  { label: "Activity Logs", href: "#", Icon: LifeBuoy, soon: true },
+  { label: "Support", href: "#", Icon: HeadphonesIcon, soon: true },
 ];
 
 export function Sidebar({
@@ -55,8 +62,18 @@ export function Sidebar({
   villages?: number;
 }) {
   const pathname = usePathname();
+  const [toast, setToast] = useState<string | null>(null);
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : href !== "#" && pathname.startsWith(href);
+
+  function showSoon(label: string) {
+    setToast(`${label} — coming soon`);
+    window.clearTimeout((showSoon as unknown as { _t?: number })._t);
+    (showSoon as unknown as { _t?: number })._t = window.setTimeout(
+      () => setToast(null),
+      2200,
+    );
+  }
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col overflow-hidden bg-[linear-gradient(180deg,#1668e6_0%,#0f57cc_55%,#0b49ad_100%)] lg:flex dark:bg-[linear-gradient(180deg,#12213e_0%,#0d1a30_55%,#0a1424_100%)] dark:ring-1 dark:ring-white/5">
@@ -79,25 +96,44 @@ export function Sidebar({
       <nav className="flex-1 overflow-y-auto px-3 pb-2">
         {ITEMS.map((it) => {
           const active = isActive(it.href);
-          return (
-            <Link
-              key={it.label}
-              href={it.href}
-              className={`mb-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition ${
-                active
-                  ? "bg-[linear-gradient(90deg,#4b8ef8,#5f9dff)] text-white shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]"
-                  : "text-white/80 hover:bg-white/10 hover:text-white"
-              }`}
-            >
+          const cls = `mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition ${
+            active
+              ? "bg-[linear-gradient(90deg,#4b8ef8,#5f9dff)] text-white shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]"
+              : "text-white/80 hover:bg-white/10 hover:text-white"
+          }`;
+          const inner = (
+            <>
               <it.Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.4 : 2} />
               <span className="flex-1">{it.label}</span>
-              {it.chevron ? (
+              {it.soon ? (
+                <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[8.5px] font-bold tracking-wide text-white/80">
+                  SOON
+                </span>
+              ) : it.chevron ? (
                 <ChevronRight className="h-4 w-4 opacity-70" />
               ) : null}
+            </>
+          );
+          return it.soon ? (
+            <button key={it.label} className={cls} onClick={() => showSoon(it.label)}>
+              {inner}
+            </button>
+          ) : (
+            <Link key={it.label} href={it.href} className={cls}>
+              {inner}
             </Link>
           );
         })}
       </nav>
+
+      {/* coming-soon toast */}
+      {toast ? (
+        <div className="pointer-events-none absolute inset-x-0 top-3 z-50 flex justify-center px-3">
+          <div className="rounded-xl bg-black/70 px-3.5 py-2 text-[12px] font-semibold text-white shadow-lg backdrop-blur">
+            {toast}
+          </div>
+        </div>
+      ) : null}
 
       {/* water splash — sits BEHIND the bottom cards (screen blend drops black) */}
       <div

@@ -82,6 +82,7 @@ export default async function DashboardPage() {
         name={profile.name}
         avatarUrl={profile.avatarUrl}
         notifications={d.counts.pending}
+        pendingItems={d.pendingList}
       />
 
       {!d.ok ? (

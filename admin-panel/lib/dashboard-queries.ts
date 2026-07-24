@@ -101,6 +101,15 @@ export async function getDashboardData() {
     time: fmtTime(b.created_at),
   }));
 
+  // ── pending bookings for the notification bell ──────────────────
+  const pendingList = pending.slice(0, 6).map((b) => ({
+    code: b.booking_code,
+    village: b.village,
+    cans: b.cans,
+    advance: b.advance,
+    time: fmtTime(b.created_at),
+  }));
+
   return {
     ok,
     counts: {
@@ -125,6 +134,7 @@ export async function getDashboardData() {
       cash: { amt: cashAmt, pct: Math.round((cashAmt / totalAdvance) * 100) },
     },
     recent,
+    pendingList,
   };
 }
 

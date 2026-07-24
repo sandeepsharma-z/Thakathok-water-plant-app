@@ -1,3 +1,4 @@
+import { Search, X } from "lucide-react";
 import Link from "next/link";
 
 import { BookingCard } from "@/components/booking-card";
@@ -17,16 +18,29 @@ const TABS = [
 export default async function BookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; q?: string }>;
 }) {
-  const { status } = await searchParams;
-  const active = TABS.some((t) => t.key === status) ? status! : "pending";
+  const { status, q } = await searchParams;
+  const search = (q ?? "").trim();
+  // A search spans every status; otherwise honour the status tab.
+  const active = search
+    ? "all"
+    : TABS.some((t) => t.key === status)
+      ? status!
+      : "pending";
 
   const supabase = await createClient();
   let query = supabase.from("bookings").select("*");
-  if (active !== "all") query = query.eq("status", active as BookingStatus);
+  if (!search && active !== "all") {
+    query = query.eq("status", active as BookingStatus);
+  }
+  if (search) {
+    // match booking code, village or mobile
+    query = query.or(
+      `booking_code.ilike.%${search}%,village.ilike.%${search}%,mobile.ilike.%${search}%`,
+    );
+  }
   const { data, error } = await query.order("created_at", { ascending: false });
-
   const bookings = (data ?? []) as Booking[];
 
   return (
@@ -40,25 +54,42 @@ export default async function BookingsPage({
         </p>
       </header>
 
-      <div className="mt-5 flex flex-wrap gap-2">
-        {TABS.map((t) => {
-          const on = t.key === active;
-          return (
-            <Link
-              key={t.key}
-              href={`/bookings?status=${t.key}`}
-              aria-current={on ? "page" : undefined}
-              className={`rounded-full px-4 py-2 text-[12.5px] font-semibold transition ${
-                on
-                  ? "bg-gradient-to-r from-[#004fda] to-[#2e8bf0] text-white shadow-[0_10px_20px_-10px_rgba(0,79,218,0.9)]"
-                  : "border border-line bg-surface text-ink-body hover:bg-tint"
-              }`}
-            >
-              {t.label}
-            </Link>
-          );
-        })}
-      </div>
+      {search ? (
+        <div className="mt-5 flex items-center gap-2 rounded-full bg-tint px-4 py-2 text-[12.5px] text-ink-body">
+          <Search className="h-4 w-4 text-brand" />
+          <span>
+            Results for <span className="font-bold text-ink">&ldquo;{search}&rdquo;</span> ·{" "}
+            {bookings.length} found
+          </span>
+          <Link
+            href="/bookings"
+            className="ml-auto inline-flex items-center gap-1 font-semibold text-brand hover:underline"
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear
+          </Link>
+        </div>
+      ) : (
+        <div className="mt-5 flex flex-wrap gap-2">
+          {TABS.map((t) => {
+            const on = t.key === active;
+            return (
+              <Link
+                key={t.key}
+                href={`/bookings?status=${t.key}`}
+                aria-current={on ? "page" : undefined}
+                className={`rounded-full px-4 py-2 text-[12.5px] font-semibold transition ${
+                  on
+                    ? "bg-gradient-to-r from-[#004fda] to-[#2e8bf0] text-white shadow-[0_10px_20px_-10px_rgba(0,79,218,0.9)]"
+                    : "border border-line bg-surface text-ink-body hover:bg-tint"
+                }`}
+              >
+                {t.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
 
       {error ? (
         <Card className="mt-5">
@@ -72,8 +103,12 @@ export default async function BookingsPage({
         <Card className="mt-5">
           <EmptyState
             icon="clipboard"
-            title={`No ${active === "all" ? "" : active} bookings`}
-            body="New enquiries from the app will appear here as soon as customers place them."
+            title={search ? "No matches" : `No ${active === "all" ? "" : active} bookings`}
+            body={
+              search
+                ? "Try a different booking code, village or mobile number."
+                : "New enquiries from the app will appear here as soon as customers place them."
+            }
           />
         </Card>
       ) : (
