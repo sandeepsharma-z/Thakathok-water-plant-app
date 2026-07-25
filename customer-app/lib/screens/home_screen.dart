@@ -10,6 +10,7 @@ import '../widgets/brand_logo.dart';
 import 'admin/admin_dashboard_screen.dart';
 import 'admin/admin_login_screen.dart';
 import 'bulk_order_form_screen.dart';
+import 'my_bookings_screen.dart';
 import 'profile_screen.dart';
 
 const double _kPad = 14;
@@ -250,8 +251,15 @@ class _AppDrawer extends StatelessWidget {
                     builder: (_) => const BulkOrderFormScreen()));
               },
             ),
-            const _DrawerItem(
-                icon: Icons.receipt_long_outlined, label: 'My Bookings'),
+            _DrawerItem(
+              icon: Icons.receipt_long_outlined,
+              label: 'My Bookings',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const MyBookingsScreen()));
+              },
+            ),
             const _DrawerItem(
                 icon: Icons.account_balance_wallet_outlined, label: 'Wallet'),
             const _DrawerItem(
