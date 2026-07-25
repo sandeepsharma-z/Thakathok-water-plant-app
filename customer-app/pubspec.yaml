@@ -41,6 +41,8 @@ dependencies:
   google_fonts: ^8.2.0
   # Backend — Supabase (Mahalakshmi Water Plant project).
   supabase_flutter: ^2.8.0
+  # Call / WhatsApp the plant from Help & Support.
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

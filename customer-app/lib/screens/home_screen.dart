@@ -4,12 +4,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../services/booking_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
-import 'admin/admin_dashboard_screen.dart';
-import 'admin/admin_login_screen.dart';
 import 'bulk_order_form_screen.dart';
+import 'help_support_screen.dart';
 import 'my_bookings_screen.dart';
 import 'profile_screen.dart';
 
@@ -113,17 +111,8 @@ class _Header extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Brand logo — truly centred. Long-press opens the admin panel.
-            GestureDetector(
-              onLongPress: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => BookingService.instance.isAdminSignedIn
-                      ? const AdminDashboardScreen()
-                      : const AdminLoginScreen(),
-                ),
-              ),
-              child: const BrandLogo(size: 44),
-            ),
+            // Brand logo — truly centred on the screen.
+            const BrandLogo(size: 44),
             // Menu — pinned left. Nudged out so the glyph's stroke lines up
             // with the greeting text below it, not the icon's padded box.
             Align(
@@ -262,8 +251,15 @@ class _AppDrawer extends StatelessWidget {
             ),
             const _DrawerItem(
                 icon: Icons.account_balance_wallet_outlined, label: 'Wallet'),
-            const _DrawerItem(
-                icon: Icons.headset_mic_outlined, label: 'Help & Support'),
+            _DrawerItem(
+              icon: Icons.headset_mic_outlined,
+              label: 'Help & Support',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const HelpSupportScreen()));
+              },
+            ),
             const Spacer(),
             const Divider(height: 1),
             Padding(
