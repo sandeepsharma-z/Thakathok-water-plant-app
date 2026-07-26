@@ -1,20 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../models/order_details.dart';
 import '../services/booking_service.dart';
+import '../services/plant_config.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
 import 'booking_confirmed_screen.dart';
 
-const String kPlantName = 'Mahalakshmi Water Plant';
-const String kPlantPhone = '91XXXXXXXXXX';
+// Contact details are admin-controlled and loaded live from settings.
+String get kPlantName => PlantConfig.instance.plantName;
+String get kPlantPhone => PlantConfig.instance.plantPhone;
 
 /// Screen 3 — order summary + 30% non-refundable advance with two payment
 /// options (online instant-confirm, or cash manual-confirm).
-class PaymentScreen extends StatelessWidget {
+class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key, required this.order});
 
   final OrderDetails order;
+
+  @override
+  State<PaymentScreen> createState() => _PaymentScreenState();
+}
+
+class _PaymentScreenState extends State<PaymentScreen> {
+  late OrderDetails order;
+  late final Razorpay _razorpay;
+  final _offerCode = TextEditingController();
+  bool _checkingOffer = false;
+
+  @override
+  void initState() {
+    super.initState();
+    order = widget.order;
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaySuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPayError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    _offerCode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +86,8 @@ class PaymentScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.offerBg,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.brand.withValues(alpha: 0.15)),
+              border:
+                  Border.all(color: AppColors.brand.withValues(alpha: 0.15)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,8 +104,83 @@ class PaymentScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   _row('Delivery Charge', '₹${order.deliveryCharge}'),
                 ],
+                if (order.hasDiscount) ...[
+                  const SizedBox(height: 8),
+                  _row(
+                    'Offer ${order.offerCode} (${order.offerDiscountPercent}%)',
+                    '-â‚¹${order.discountAmount}',
+                  ),
+                ],
                 const Divider(height: 22),
                 _row('Total', '₹${order.grandTotal}', bold: true),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.cardBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Have an offer code?',
+                    style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark)),
+                const SizedBox(height: 9),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _offerCode,
+                        enabled: !order.hasDiscount && !_checkingOffer,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: InputDecoration(
+                          hintText: 'Enter code',
+                          isDense: true,
+                          filled: true,
+                          fillColor: const Color(0xFFF7FAFF),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                const BorderSide(color: AppColors.hairline),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    TextButton(
+                      onPressed: _checkingOffer
+                          ? null
+                          : order.hasDiscount
+                              ? _removeOffer
+                              : _applyOffer,
+                      child: _checkingOffer
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: AppColors.brand),
+                            )
+                          : Text(order.hasDiscount ? 'Remove' : 'Apply'),
+                    ),
+                  ],
+                ),
+                if (order.hasDiscount) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    'You saved â‚¹${order.discountAmount} with ${order.offerCode}.',
+                    style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF166B40)),
+                  ),
+                ],
               ],
             ),
           ),
@@ -133,7 +239,7 @@ class PaymentScreen extends StatelessWidget {
           SizedBox(
             height: 54,
             child: ElevatedButton(
-              onPressed: () => _payOnline(context),
+              onPressed: _payOnline,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brand,
                 foregroundColor: Colors.white,
@@ -161,7 +267,7 @@ class PaymentScreen extends StatelessWidget {
           SizedBox(
             height: 54,
             child: OutlinedButton(
-              onPressed: () => _payCash(context),
+              onPressed: _payCash,
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.brand,
                 side: const BorderSide(color: AppColors.brand, width: 1.4),
@@ -194,14 +300,106 @@ class PaymentScreen extends StatelessWidget {
     );
   }
 
-  // Online → instant confirm (Amazon-Pay style).
-  void _payOnline(BuildContext context) {
-    _confirm(context,
-        method: 'online', status: 'confirmed', paidOnline: true);
+  // Online → open Razorpay checkout for the 30% advance.
+  Future<void> _applyOffer() async {
+    final entered = _offerCode.text.trim().toUpperCase();
+    if (entered.isEmpty) {
+      _showOfferMessage('Enter an offer code.');
+      return;
+    }
+    setState(() => _checkingOffer = true);
+    final settings = await BookingService.instance.fetchSettings();
+    if (!mounted) return;
+    setState(() => _checkingOffer = false);
+
+    if (settings == null) {
+      _showOfferMessage('Could not check the offer. Please try again.');
+      return;
+    }
+    if (!settings.offerEnabled) {
+      _showOfferMessage('This offer is currently inactive.');
+      return;
+    }
+    if (entered != settings.offerCode.trim().toUpperCase()) {
+      _showOfferMessage('This offer code is invalid.');
+      return;
+    }
+    if (order.subtotal < settings.offerMinSubtotal) {
+      _showOfferMessage(
+          'Minimum product subtotal is â‚¹${settings.offerMinSubtotal}.');
+      return;
+    }
+
+    final discount =
+        (order.subtotal * settings.offerDiscountPercent / 100).round();
+    setState(() {
+      order = order.withOffer(
+        code: settings.offerCode.trim().toUpperCase(),
+        percent: settings.offerDiscountPercent,
+        discount: discount,
+      );
+      _offerCode.text = order.offerCode!;
+    });
   }
 
+  void _removeOffer() {
+    setState(() {
+      order = order.withoutOffer();
+      _offerCode.clear();
+    });
+  }
+
+  void _showOfferMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  void _payOnline() {
+    final keyId = PlantConfig.instance.razorpayKeyId.trim();
+    if (keyId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Online payment isn\'t set up yet — please choose Cash.'),
+      ));
+      return;
+    }
+    try {
+      _razorpay.open({
+        'key': keyId,
+        'amount': order.advance * 100, // Razorpay works in paise.
+        'currency': 'INR',
+        'name': PlantConfig.instance.plantName,
+        'description': 'Advance for booking ${order.bookingId}',
+        'prefill': {'contact': order.mobile},
+        'theme': {'color': '#004FDA'},
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not open payment. Please try again.'),
+      ));
+    }
+  }
+
+  // Payment captured → confirm the booking.
+  void _onPaySuccess(PaymentSuccessResponse response) {
+    _confirm(method: 'online', status: 'confirmed', paidOnline: true);
+  }
+
+  void _onPayError(PaymentFailureResponse response) {
+    if (!mounted) return;
+    final cancelled = response.code == Razorpay.PAYMENT_CANCELLED;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(cancelled
+          ? 'Payment cancelled.'
+          : 'Payment failed. Please try again or choose Cash.'),
+    ));
+  }
+
+  void _onExternalWallet(ExternalWalletResponse response) {}
+
   // Cash → show instructions; booking stays pending until admin confirms.
-  void _payCash(BuildContext context) {
+  void _payCash() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -211,15 +409,14 @@ class PaymentScreen extends StatelessWidget {
       ),
       builder: (_) => _CashInstructionsSheet(
         order: order,
-        onConfirm: () => _confirm(context,
-            method: 'cash', status: 'pending', paidOnline: false),
+        onConfirm: () =>
+            _confirm(method: 'cash', status: 'pending', paidOnline: false),
       ),
     );
   }
 
   /// Saves the booking to Supabase, then shows the confirmation screen.
-  Future<void> _confirm(
-    BuildContext context, {
+  Future<void> _confirm({
     required String method,
     required String status,
     required bool paidOnline,
@@ -240,7 +437,7 @@ class PaymentScreen extends StatelessWidget {
       error = e;
     }
 
-    if (!context.mounted) return;
+    if (!mounted) return;
     Navigator.of(context).pop(); // dismiss the loading spinner
 
     if (error != null) {
@@ -319,10 +516,9 @@ class _CashInstructionsSheet extends StatelessWidget {
                   color: AppColors.brand)),
           const SizedBox(height: 16),
           _step('1', 'Note down Booking ID: ', bold: order.bookingId),
-          _step('2',
-              'Pay ₹${order.advance} cash to $kPlantName within 24 hours'),
-          _step('3',
-              'Call / WhatsApp $kPlantPhone with your Booking ID'),
+          _step(
+              '2', 'Pay ₹${order.advance} cash to $kPlantName within 24 hours'),
+          _step('3', 'Call / WhatsApp $kPlantPhone with your Booking ID'),
           const SizedBox(height: 14),
           Container(
             width: double.infinity,
@@ -358,8 +554,8 @@ class _CashInstructionsSheet extends StatelessWidget {
                 ),
               ),
               child: const Text('I WILL PAY CASH',
-                  style: TextStyle(
-                      fontSize: 14.5, fontWeight: FontWeight.w700)),
+                  style:
+                      TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
             ),
           ),
         ],

@@ -10,6 +10,7 @@ import {
   Package,
   TriangleAlert,
   Wallet,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -33,6 +34,7 @@ const STAT_ICONS: Record<string, LucideIcon> = {
   wallet: Wallet,
   dues: TriangleAlert,
   upcoming: CalendarClock,
+  users: Users,
 };
 
 export type StatCard = {

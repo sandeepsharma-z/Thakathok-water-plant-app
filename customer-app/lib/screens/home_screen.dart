@@ -2,14 +2,24 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
+import '../models/product_pack.dart';
+import '../services/booking_service.dart';
+import '../services/plant_config.dart';
+import '../services/profile_store.dart';
+import '../services/notification_store.dart';
+import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
+import 'all_product_packs_screen.dart';
 import 'bulk_order_form_screen.dart';
 import 'help_support_screen.dart';
 import 'my_bookings_screen.dart';
+import 'notifications_screen.dart';
+import 'login_screen.dart';
 import 'profile_screen.dart';
+import 'product_pack_details_screen.dart';
+import 'product_search_screen.dart';
 
 const double _kPad = 14;
 
@@ -17,14 +27,133 @@ const double _kPad = 14;
 const double _kGap = 18;
 
 /// Home screen built to the approved Figma design.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  CustomerProfile _profile = const CustomerProfile();
+  RefreshIndicatorStatus? _refreshStatus;
+  late final AnimationController _refreshController;
+  bool _notificationsRead = false;
+  int _notificationCount = 0;
+  CustomerHomeSummary _summary = const CustomerHomeSummary();
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 850),
+    );
+    _loadProfile();
+    _loadHomeData();
+  }
+
+  @override
+  void dispose() {
+    _refreshController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfile() async {
+    final profile = await ProfileStore.instance.load();
+    if (mounted) setState(() => _profile = profile);
+  }
+
+  Future<void> _loadNotificationState() async {
+    final mobile = await AuthService.instance.currentMobile() ?? '';
+    final results = await Future.wait([
+      NotificationStore.instance.areAllRead(mobile),
+      NotificationStore.instance.removedIds(mobile),
+    ]);
+    final removed = results[1] as Set<String>;
+    if (mounted) {
+      setState(() {
+        _notificationsRead = results[0] as bool;
+        _notificationCount = appNotifications
+            .where((notification) => !removed.contains(notification.id))
+            .length;
+      });
+    }
+  }
+
+  Future<void> _loadHomeData() async {
+    await Future.wait([
+      _loadNotificationState(),
+      _loadFinancialSummary(),
+    ]);
+  }
+
+  Future<void> _loadFinancialSummary() async {
+    final mobile = await AuthService.instance.currentMobile() ?? '';
+    try {
+      final summary = await BookingService.instance.customerHomeSummary(mobile);
+      if (mounted) setState(() => _summary = summary);
+    } catch (_) {
+      // Keep the last valid values when the network is unavailable.
+    }
+  }
+
+  Future<void> _openNotifications() async {
+    final mobile = await AuthService.instance.currentMobile() ?? '';
+    await NotificationStore.instance.markAllRead(mobile);
+    if (mounted) setState(() => _notificationsRead = true);
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    );
+    await _loadNotificationState();
+  }
+
+  Future<void> _openProfile() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+    await _loadProfile();
+  }
+
+  Future<void> _refreshHome() async {
+    final started = DateTime.now();
+    await Future.wait([
+      PlantConfig.instance.load(),
+      ProfileStore.instance.load().then((profile) {
+        if (mounted) setState(() => _profile = profile);
+      }),
+      _loadHomeData(),
+    ]);
+    final elapsed = DateTime.now().difference(started);
+    if (elapsed < const Duration(milliseconds: 700)) {
+      await Future<void>.delayed(
+        const Duration(milliseconds: 700) - elapsed,
+      );
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _onRefreshStatus(RefreshIndicatorStatus? status) {
+    if (!mounted) return;
+    setState(() => _refreshStatus = status);
+    if (status == RefreshIndicatorStatus.drag ||
+        status == RefreshIndicatorStatus.armed ||
+        status == RefreshIndicatorStatus.snap ||
+        status == RefreshIndicatorStatus.refresh) {
+      _refreshController.repeat();
+    } else {
+      _refreshController.stop();
+      _refreshController.value = 0;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      drawer: const _AppDrawer(),
+      drawer: _AppDrawer(profile: _profile, onOpenProfile: _openProfile),
       body: Stack(
         children: [
           // Soft blue glow behind the top of the screen, fading into white.
@@ -51,56 +180,196 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            const _Header(),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    _Greeting(),
-                    SizedBox(height: 12),
-                    _SearchBar(),
-                    SizedBox(height: _kGap),
-                    _BannerCarousel(),
-                    SizedBox(height: _kGap),
-                    _WalletDuesRow(),
-                    SizedBox(height: _kGap),
-                    _OfferCard(),
-                    SizedBox(height: _kGap),
-                    _SectionHeader(
-                        title: 'Most Popular 🔥', trailing: 'View All →'),
-                    SizedBox(height: 12),
-                    _PopularSlider(),
-                    SizedBox(height: _kGap),
-                    _AssetBanner('assets/images/image 12.png', 419 / 207),
-                    SizedBox(height: _kGap),
-                    _ShopByNeed(),
-                    SizedBox(height: _kGap),
-                    _AssetBanner('assets/images/image 25.png', 428 / 109),
-                    SizedBox(height: _kGap),
-                    _TrustStrip(),
-                  ],
+            bottom: false,
+            child: Column(
+              children: [
+                _Header(
+                  profile: _profile,
+                  unreadCount: _notificationsRead ? 0 : _notificationCount,
+                  onOpenNotifications: _openNotifications,
+                  onOpenProfile: _openProfile,
                 ),
-              ),
+                Expanded(
+                  child: Stack(
+                    alignment: Alignment.topCenter,
+                    children: [
+                      RefreshIndicator.noSpinner(
+                        onRefresh: _refreshHome,
+                        onStatusChange: _onRefreshStatus,
+                        notificationPredicate: (notification) =>
+                            notification.depth == 0,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
+                          ),
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _Greeting(profile: _profile),
+                              const SizedBox(height: 12),
+                              const _SearchBar(),
+                              const SizedBox(height: _kGap),
+                              const _BannerCarousel(),
+                              const SizedBox(height: 12),
+                              _QuickActions(profile: _profile),
+                              const SizedBox(height: _kGap),
+                              _WalletDuesRow(
+                                walletBalance: _summary.walletBalance,
+                                pendingDues: _summary.pendingDues,
+                                mobile: _profile.mobile,
+                              ),
+                              if (PlantConfig.instance.offerEnabled) ...[
+                                const SizedBox(height: _kGap),
+                                const _OfferCard(),
+                              ],
+                              const SizedBox(height: _kGap),
+                              _SectionHeader(
+                                title: 'Most Popular 🔥',
+                                trailing: 'View All',
+                                onTrailingTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AllProductPacksScreen(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const _PopularSlider(),
+                              const SizedBox(height: _kGap),
+                              _AssetBanner(
+                                'assets/images/image 12.png',
+                                419 / 207,
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const BulkOrderFormScreen(),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: _kGap),
+                              const _ShopByNeed(),
+                              const SizedBox(height: _kGap),
+                              const _AssetBanner(
+                                  'assets/images/image 25.png', 428 / 109),
+                              const SizedBox(height: _kGap),
+                              const _TrustStrip(),
+                            ],
+                          ),
+                        ),
+                      ),
+                      _WaterRefreshBadge(
+                        status: _refreshStatus,
+                        controller: _refreshController,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
           ),
         ],
       ),
-      bottomNavigationBar: const _Footer(),
+      bottomNavigationBar: _Footer(onOpenProfile: _openProfile),
     );
   }
 }
 
 // ── Header ────────────────────────────────────────────────────────────
+class _WaterRefreshBadge extends StatelessWidget {
+  const _WaterRefreshBadge({
+    required this.status,
+    required this.controller,
+  });
+
+  final RefreshIndicatorStatus? status;
+  final AnimationController controller;
+
+  bool get _visible =>
+      status == RefreshIndicatorStatus.drag ||
+      status == RefreshIndicatorStatus.armed ||
+      status == RefreshIndicatorStatus.snap ||
+      status == RefreshIndicatorStatus.refresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedPositioned(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      top: _visible ? 10 : -48,
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 140),
+          opacity: _visible ? 1 : 0,
+          child: RotationTransition(
+            turns: controller,
+            child: Container(
+              height: 42,
+              width: 42,
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.96),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.brand.withValues(alpha: 0.16),
+                    blurRadius: 16,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: CustomPaint(
+                painter: const _DottedLoaderPainter(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DottedLoaderPainter extends CustomPainter {
+  const _DottedLoaderPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const dots = 12;
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide / 2 - 2.5;
+
+    for (var i = 0; i < dots; i++) {
+      final angle = (math.pi * 2 * i / dots) - math.pi / 2;
+      final opacity = 0.22 + (0.78 * (i + 1) / dots);
+      final dotRadius = 1.5 + (0.8 * (i + 1) / dots);
+      final paint = Paint()
+        ..color = AppColors.brand.withValues(alpha: opacity)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(
+        Offset(
+          center.dx + math.cos(angle) * radius,
+          center.dy + math.sin(angle) * radius,
+        ),
+        dotRadius,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({
+    required this.profile,
+    required this.unreadCount,
+    required this.onOpenNotifications,
+    required this.onOpenProfile,
+  });
+  final CustomerProfile profile;
+  final int unreadCount;
+  final VoidCallback onOpenNotifications;
+  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -135,35 +404,40 @@ class _Header extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Image.asset('assets/images/Vector.png', height: 21),
-                      Positioned(
-                        right: -4,
-                        top: -5,
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE23D3D),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Text('3',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 8,
-                                  height: 1,
-                                  fontWeight: FontWeight.w700)),
-                        ),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onOpenNotifications,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Image.asset('assets/images/Vector.png', height: 21),
+                          if (unreadCount > 0)
+                            Positioned(
+                              right: -4,
+                              top: -5,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFE23D3D),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Text('$unreadCount',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8,
+                                        height: 1,
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                            ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(width: 14),
                   GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const ProfileScreen()),
-                    ),
+                    onTap: onOpenProfile,
                     child: Container(
                       height: 36,
                       width: 36,
@@ -172,8 +446,19 @@ class _Header extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: AppColors.hairline),
                       ),
-                      child: const Icon(Icons.person_rounded,
-                          color: AppColors.brand, size: 21),
+                      clipBehavior: Clip.antiAlias,
+                      child: profile.avatarUrl.isEmpty
+                          ? const Icon(Icons.person_rounded,
+                              color: AppColors.brand, size: 21)
+                          : Image.network(
+                              profile.avatarUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.person_rounded,
+                                color: AppColors.brand,
+                                size: 21,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -186,9 +471,158 @@ class _Header extends StatelessWidget {
   }
 }
 
+// ── Notifications ─────────────────────────────────────────────────────
+/// App notifications. Static for now — booking/payment updates will be wired
+/// to Supabase once phone-OTP auth lands.
+const List<({IconData icon, String title, String body})> _kNotifications = [
+  (
+    icon: Icons.water_drop_rounded,
+    title: 'Welcome to ThakaThok 💧',
+    body: 'Book bulk water for your weddings & events in just a few taps.',
+  ),
+  (
+    icon: Icons.verified_rounded,
+    title: 'How booking works',
+    body: 'Pay a 30% advance to confirm your date. The balance is cash on '
+        'delivery.',
+  ),
+  (
+    icon: Icons.local_shipping_rounded,
+    title: 'Free delivery in Kasara Balkunda',
+    body: 'A delivery charge applies only on orders under 25 cans in other '
+        'villages.',
+  ),
+];
+
+// Legacy sheet retained temporarily for layout reference.
+// ignore: unused_element
+void _showNotifications(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+    ),
+    builder: (_) => const _NotificationsSheet(),
+  );
+}
+
+class _NotificationsSheet extends StatelessWidget {
+  const _NotificationsSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                height: 4,
+                width: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.hairline,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.notifications_rounded,
+                    color: AppColors.brand, size: 22),
+                const SizedBox(width: 8),
+                const Text('Notifications',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textDark)),
+                const Spacer(),
+                Text('${_kNotifications.length} new',
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.brand)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_kNotifications.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text("You're all caught up",
+                      style: TextStyle(fontSize: 13.5, color: AppColors.body)),
+                ),
+              )
+            else
+              for (final n in _kNotifications) _NotificationTile(n),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile(this.n);
+  final ({IconData icon, String title, String body}) n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.hairline),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 36,
+            width: 36,
+            decoration: BoxDecoration(
+              color: AppColors.tint,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(n.icon, size: 19, color: AppColors.brand),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(n.title,
+                    style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textDark)),
+                const SizedBox(height: 2),
+                Text(n.body,
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.body, height: 1.35)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Side drawer ───────────────────────────────────────────────────────
 class _AppDrawer extends StatelessWidget {
-  const _AppDrawer();
+  const _AppDrawer({
+    required this.profile,
+    required this.onOpenProfile,
+  });
+  final CustomerProfile profile;
+  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -207,15 +641,15 @@ class _AppDrawer extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(_Greeting.customerName,
-                          style: TextStyle(
+                    children: [
+                      Text(_firstName(profile.name),
+                          style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textDark)),
-                      Text('Mahalakshmi Water Plant',
-                          style: TextStyle(
-                              fontSize: 10.5, color: AppColors.body)),
+                      const Text('Mahalakshmi Water Plant',
+                          style:
+                              TextStyle(fontSize: 10.5, color: AppColors.body)),
                     ],
                   ),
                 ],
@@ -227,8 +661,7 @@ class _AppDrawer extends StatelessWidget {
               label: 'My Profile',
               onTap: () {
                 Navigator.pop(context);
-                Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const ProfileScreen()));
+                onOpenProfile();
               },
             ),
             _DrawerItem(
@@ -260,6 +693,18 @@ class _AppDrawer extends StatelessWidget {
                     builder: (_) => const HelpSupportScreen()));
               },
             ),
+            _DrawerItem(
+              icon: Icons.logout_rounded,
+              label: 'Logout',
+              onTap: () async {
+                await AuthService.instance.logout();
+                if (!context.mounted) return;
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (_) => false,
+                );
+              },
+            ),
             const Spacer(),
             const Divider(height: 1),
             Padding(
@@ -287,10 +732,11 @@ class _DrawerItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.brand, size: 21),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+      leading: Icon(icon, color: AppColors.brand, size: 25),
       title: Text(label,
           style: const TextStyle(
-              fontSize: 13.5,
+              fontSize: 15.5,
               fontWeight: FontWeight.w600,
               color: AppColors.textDark)),
       onTap: onTap ??
@@ -300,18 +746,18 @@ class _DrawerItem extends StatelessWidget {
               SnackBar(content: Text('$label — coming soon')),
             );
           },
-      dense: true,
-      visualDensity: const VisualDensity(vertical: -1),
+      minLeadingWidth: 28,
+      horizontalTitleGap: 12,
     );
   }
 }
 
 // ── Greeting ──────────────────────────────────────────────────────────
 class _Greeting extends StatelessWidget {
-  const _Greeting();
+  const _Greeting({required this.profile});
+  final CustomerProfile profile;
 
   /// Customer name — comes from the profile once accounts are wired up.
-  static const String customerName = 'Rupali';
 
   String get _timeOfDay {
     final h = DateTime.now().hour;
@@ -332,9 +778,9 @@ class _Greeting extends StatelessWidget {
                   fontSize: 12.5, color: AppColors.body, height: 1.2)),
           const SizedBox(height: 1),
           Row(
-            children: const [
-              Text('$customerName ',
-                  style: TextStyle(
+            children: [
+              Text('${_firstName(profile.name)} ',
+                  style: const TextStyle(
                       fontSize: 19,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textDark,
@@ -352,8 +798,155 @@ class _Greeting extends StatelessWidget {
 }
 
 // ── Wallet balance + pending dues ─────────────────────────────────────
+String _firstName(String fullName) {
+  final trimmed = fullName.trim();
+  return trimmed.isEmpty ? 'Customer' : trimmed.split(RegExp(r'\s+')).first;
+}
+
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({required this.profile});
+
+  final CustomerProfile profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final actions =
+        <({IconData icon, String title, String subtitle, VoidCallback onTap})>[
+      (
+        icon: Icons.water_drop_rounded,
+        title: 'Order Water',
+        subtitle: 'New order',
+        onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BulkOrderFormScreen()),
+            ),
+      ),
+      (
+        icon: Icons.sync_rounded,
+        title: 'Repeat Order',
+        subtitle: 'Quick reorder',
+        onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MyBookingsScreen(initialMobile: profile.mobile),
+              ),
+            ),
+      ),
+      (
+        icon: Icons.receipt_long_rounded,
+        title: 'My Orders',
+        subtitle: 'Track & history',
+        onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MyBookingsScreen(initialMobile: profile.mobile),
+              ),
+            ),
+      ),
+      (
+        icon: Icons.account_balance_wallet_rounded,
+        title: 'My Wallet',
+        subtitle: 'Balance & history',
+        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Your wallet balance is shown below.')),
+            ),
+      ),
+      (
+        icon: Icons.headset_mic_rounded,
+        title: 'Support',
+        subtitle: 'Help & support',
+        onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+            ),
+      ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _kPad),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(5, 13, 5, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.hairline),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.brand.withValues(alpha: 0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 7),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final action in actions)
+              Expanded(
+                child: InkWell(
+                  onTap: action.onTap,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          height: 43,
+                          width: 43,
+                          decoration: const BoxDecoration(
+                            color: AppColors.tint,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            action.icon,
+                            size: 23,
+                            color: AppColors.brand,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          action.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 9.3,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.heading,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          action.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 7.4,
+                            color: AppColors.body,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _WalletDuesRow extends StatelessWidget {
-  const _WalletDuesRow();
+  const _WalletDuesRow({
+    required this.walletBalance,
+    required this.pendingDues,
+    required this.mobile,
+  });
+
+  final int walletBalance;
+  final int pendingDues;
+  final String mobile;
 
   @override
   Widget build(BuildContext context) {
@@ -363,36 +956,41 @@ class _WalletDuesRow extends StatelessWidget {
       // stretch to match — a bare `stretch` would be unbounded in a scroll view.
       child: IntrinsicHeight(
         child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            child: _MoneyCard(
-              icon: Icons.account_balance_wallet_rounded,
-              iconBg: AppColors.tint,
-              iconColor: AppColors.brand,
-              title: 'Wallet Balance',
-              titleColor: AppColors.brand,
-              amount: '₹650',
-              paise: '.00',
-              action: 'Add Money',
-              actionFilled: true,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _MoneyCard(
+                icon: Icons.account_balance_wallet_rounded,
+                iconBg: AppColors.tint,
+                iconColor: AppColors.brand,
+                title: 'Wallet Balance',
+                titleColor: AppColors.brand,
+                amount: '₹$walletBalance',
+                paise: '.00',
+                action: 'Add Money',
+                actionFilled: true,
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _MoneyCard(
-              icon: Icons.receipt_long_rounded,
-              iconBg: Color(0xFFFDECEC),
-              iconColor: Color(0xFFE23D3D),
-              title: 'Pending Dues',
-              titleColor: Color(0xFFE23D3D),
-              amount: '₹150',
-              paise: '.00',
-              action: 'View Details',
-              actionFilled: false,
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MoneyCard(
+                icon: Icons.receipt_long_rounded,
+                iconBg: Color(0xFFFDECEC),
+                iconColor: Color(0xFFE23D3D),
+                title: 'Pending Dues',
+                titleColor: const Color(0xFFE23D3D),
+                amount: '₹$pendingDues',
+                paise: '.00',
+                action: 'View Details',
+                actionFilled: false,
+                onAction: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MyBookingsScreen(initialMobile: mobile),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
         ),
       ),
     );
@@ -410,6 +1008,7 @@ class _MoneyCard extends StatelessWidget {
     required this.paise,
     required this.action,
     required this.actionFilled,
+    this.onAction,
   });
 
   final IconData icon;
@@ -421,6 +1020,7 @@ class _MoneyCard extends StatelessWidget {
   final String paise;
   final String action;
   final bool actionFilled;
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
@@ -488,7 +1088,7 @@ class _MoneyCard extends StatelessWidget {
             width: double.infinity,
             child: actionFilled
                 ? ElevatedButton(
-                    onPressed: () {},
+                    onPressed: onAction ?? () {},
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.brand,
                       foregroundColor: Colors.white,
@@ -509,7 +1109,7 @@ class _MoneyCard extends StatelessWidget {
                     ),
                   )
                 : OutlinedButton(
-                    onPressed: () {},
+                    onPressed: onAction ?? () {},
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFE23D3D),
                       side: const BorderSide(color: Color(0x55E23D3D)),
@@ -603,6 +1203,7 @@ class _SearchBar extends StatefulWidget {
 class _SearchBarState extends State<_SearchBar> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
+  int _hintCycle = 0;
 
   @override
   void initState() {
@@ -611,7 +1212,22 @@ class _SearchBarState extends State<_SearchBar> {
     _focus.addListener(_onChange);
   }
 
-  void _onChange() => setState(() {});
+  void _onChange() {
+    if (!_focus.hasFocus && _controller.text.isEmpty) {
+      _hintCycle++;
+    }
+    setState(() {});
+  }
+
+  void _searchProducts() {
+    final query = _controller.text.trim();
+    _focus.unfocus();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProductSearchScreen(initialQuery: query),
+      ),
+    );
+  }
 
   @override
   void dispose() {
@@ -637,6 +1253,9 @@ class _SearchBarState extends State<_SearchBar> {
                   TextField(
                     controller: _controller,
                     focusNode: _focus,
+                    onTapOutside: (_) => _focus.unfocus(),
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _searchProducts(),
                     cursorColor: AppColors.brand,
                     style: const TextStyle(
                         fontSize: 13, color: AppColors.textDark),
@@ -652,22 +1271,25 @@ class _SearchBarState extends State<_SearchBar> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            const BorderSide(color: AppColors.brand, width: 1.3),
+                        borderSide: const BorderSide(
+                            color: AppColors.brand, width: 1.3),
                       ),
                     ),
                   ),
                   if (showHint)
-                    const Positioned(
+                    Positioned(
                       left: 16,
-                      child: IgnorePointer(child: _TypingHint()),
+                      right: 12,
+                      child: IgnorePointer(
+                        child: _TypingHint(key: ValueKey(_hintCycle)),
+                      ),
                     ),
                 ],
               ),
             ),
           ),
           const SizedBox(width: 10),
-          const _SearchButton(),
+          _SearchButton(onTap: _searchProducts),
         ],
       ),
     );
@@ -676,22 +1298,28 @@ class _SearchBarState extends State<_SearchBar> {
 
 /// The dark-blue search button with slow bubbles rising inside it.
 class _SearchButton extends StatelessWidget {
-  const _SearchButton();
+  const _SearchButton({required this.onTap});
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
+    return Material(
+      color: AppColors.brand,
       borderRadius: BorderRadius.circular(10),
-      child: Container(
-        height: 46,
-        width: 46,
-        color: AppColors.brand, // solid dark bluish
-        child: const Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned.fill(child: _RisingBubbles()),
-            Icon(Icons.search, color: Colors.white, size: 22),
-          ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: const SizedBox(
+          height: 46,
+          width: 46,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(child: _RisingBubbles()),
+              Icon(Icons.search, color: Colors.white, size: 22),
+            ],
+          ),
         ),
       ),
     );
@@ -791,7 +1419,7 @@ class _BubblePainter extends CustomPainter {
 /// Placeholder that types itself out, holds, deletes and moves to the
 /// next phrase — with a blinking caret.
 class _TypingHint extends StatefulWidget {
-  const _TypingHint();
+  const _TypingHint({super.key});
 
   @override
   State<_TypingHint> createState() => _TypingHintState();
@@ -1012,17 +1640,21 @@ class _OfferCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Text('Weekend  Splash Offer',
-                      style: TextStyle(
+                children: [
+                  Text(PlantConfig.instance.offerTitle,
+                      style: const TextStyle(
                           color: AppColors.heading,
                           fontWeight: FontWeight.w600,
                           fontSize: 15)),
-                  SizedBox(height: 3),
-                  Text('Get up to 15% OFF on all orders above Rs.300',
-                      maxLines: 1,
+                  const SizedBox(height: 3),
+                  Text(PlantConfig.instance.offerDescription,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: AppColors.body, fontSize: 9)),
+                      style: const TextStyle(
+                        color: AppColors.body,
+                        fontSize: 9,
+                        height: 1.35,
+                      )),
                 ],
               ),
             ),
@@ -1050,11 +1682,11 @@ class _DashedCodeBox extends StatelessWidget {
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: const [
-            Text('Use Code',
+          children: [
+            const Text('Use Code',
                 style: TextStyle(fontSize: 8.5, color: AppColors.body)),
-            Text('SPLASH15',
-                style: TextStyle(
+            Text(PlantConfig.instance.offerCode,
+                style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
                     color: AppColors.heading)),
@@ -1095,9 +1727,14 @@ class _DashedBorderPainter extends CustomPainter {
 
 // ── Section header ────────────────────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.trailing});
+  const _SectionHeader({
+    required this.title,
+    this.trailing,
+    this.onTrailingTap,
+  });
   final String title;
   final String? trailing;
+  final VoidCallback? onTrailingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1112,11 +1749,31 @@ class _SectionHeader extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   color: Colors.black)),
           if (trailing != null)
-            Text(trailing!,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.brand)),
+            InkWell(
+              onTap: onTrailingTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(trailing!,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.brand,
+                            height: 1)),
+                    const SizedBox(width: 3),
+                    const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 16,
+                      color: AppColors.brand,
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -1129,86 +1786,93 @@ class _PopularSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const products = [
-      ('Jar Water 20L', 'Rs. 150', 'assets/images/Jar Water 20L.png'),
-      ('Water Bottle 1.5L', 'Rs. 35', 'assets/images/Water Bottle 1.5L.png'),
-      (
-        'Water Bottle 1.5L Pack (4)',
-        'Rs. 120',
-        'assets/images/Water Bottle 1.5L Pack (4).png'
-      ),
-      ('Jar Water 10L', 'Rs. 100', 'assets/images/Jar Water 10L.png'),
-    ];
     return SizedBox(
-      height: 196,
+      height: 214,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: _kPad),
-        itemCount: products.length,
+        itemCount: productPacks.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, i) => _ProductCard(
-          name: products[i].$1,
-          price: products[i].$2,
-          image: products[i].$3,
-        ),
+        itemBuilder: (_, i) => _ProductCard(pack: productPacks[i]),
       ),
     );
   }
 }
 
 class _ProductCard extends StatelessWidget {
-  const _ProductCard(
-      {required this.name, required this.price, required this.image});
-  final String name;
-  final String price;
-  final String image;
+  const _ProductCard({required this.pack});
+  final ProductPack pack;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 136,
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.cardBorder),
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ProductPackDetailsScreen(pack: pack),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Center(
-              child: Image.asset(image, height: 100, fit: BoxFit.contain),
+      child: Container(
+        width: 150,
+        padding: const EdgeInsets.fromLTRB(9, 9, 9, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.cardBorder),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.brand.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 5),
             ),
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 32,
-            width: double.infinity,
-            child: Text(name,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Hero(
+                tag: pack.image,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.asset(
+                    pack.image,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 9),
+            SizedBox(
+              height: 36,
+              width: double.infinity,
+              child: Text(
+                pack.name,
                 maxLines: 2,
-                textAlign: TextAlign.center,
+                textAlign: TextAlign.left,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.25,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black)),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(price,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.brand)),
-              SvgPicture.asset('assets/images/add-circle-svgrepo-com.svg',
-                  width: 26, height: 26),
-            ],
-          ),
-        ],
+                  fontSize: 12,
+                  height: 1.25,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textDark,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                pack.quantityLabel,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.brand,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1216,19 +1880,25 @@ class _ProductCard extends StatelessWidget {
 
 // ── Full-bleed asset banner ───────────────────────────────────────────
 class _AssetBanner extends StatelessWidget {
-  const _AssetBanner(this.path, this.ratio);
+  const _AssetBanner(this.path, this.ratio, {this.onTap});
   final String path;
   final double ratio;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _kPad),
-      child: ClipRRect(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-        child: AspectRatio(
-          aspectRatio: ratio,
-          child: Image.asset(path, fit: BoxFit.cover),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: AspectRatio(
+            aspectRatio: ratio,
+            child: Image.asset(path, fit: BoxFit.cover),
+          ),
         ),
       ),
     );
@@ -1242,10 +1912,10 @@ class _ShopByNeed extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const cats = [
-      ('Jar 20L', 'assets/images/jar 20.png'),
-      ('Jar 10L', 'assets/images/jar 10.png'),
-      ('Bottle 1.5L', 'assets/images/Bottle 1.5L.png'),
-      ('Jar 5L', 'assets/images/Jar 5L.png'),
+      ('Wedding', 'assets/images/Products/Jumbo Event Pack.png', 'Wedding'),
+      ('Birthday', 'assets/images/Products/Mini Event Pack.png', 'Birthday'),
+      ('Large Events', 'assets/images/Products/Large Event Pack.png', 'Other'),
+      ('Custom Need', 'assets/images/Products/Custom Event Pack.png', 'Other'),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1268,28 +1938,50 @@ class _ShopByNeed extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: _kPad),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               for (final c in cats)
-                Container(
-                  height: 88,
-                  width: 88,
-                  decoration: BoxDecoration(
-                    color: AppColors.tint,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.tint),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(c.$2, height: 40),
-                      const SizedBox(height: 5),
-                      Text(c.$1,
+                Expanded(
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => BulkOrderFormScreen(
+                          initialEventType: c.$3,
+                          startWithCustomQuantity: c.$1 == 'Custom Need',
+                        ),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(60),
+                    child: Column(
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 1,
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: AppColors.tint,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.hairline),
+                            ),
+                            child: ClipOval(
+                              child: Image.asset(c.$2, fit: BoxFit.contain),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          c.$1,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
                           style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.brand)),
-                    ],
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.brand,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],
@@ -1302,14 +1994,14 @@ class _ShopByNeed extends StatelessWidget {
 
 // ── Footer ────────────────────────────────────────────────────────────
 class _Footer extends StatefulWidget {
-  const _Footer();
+  const _Footer({required this.onOpenProfile});
+  final VoidCallback onOpenProfile;
 
   @override
   State<_Footer> createState() => _FooterState();
 }
 
-class _FooterState extends State<_Footer>
-    with SingleTickerProviderStateMixin {
+class _FooterState extends State<_Footer> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _pulse;
 
@@ -1356,20 +2048,30 @@ class _FooterState extends State<_Footer>
                         BorderRadius.vertical(top: Radius.circular(47)),
                   ),
                   child: Row(
-                    children: const [
-                      Expanded(
+                    children: [
+                      const Expanded(
                           child: _NavItem(Icons.home_filled, 'Home',
                               active: true)),
                       Expanded(
-                          child: _NavItem(Icons.add_shopping_cart, 'Cart')),
-                      SizedBox(width: 90),
+                          child: _NavItem(
+                              Icons.receipt_long_outlined, 'My Bookings',
+                              onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const MyBookingsScreen(),
+                                    ),
+                                  ))),
+                      const SizedBox(width: 90),
+                      Expanded(
+                        child: _NavItem(
+                            Icons.account_balance_wallet_outlined, 'Wallet',
+                            onTap: () => ScaffoldMessenger.of(context)
+                                .showSnackBar(const SnackBar(
+                                    content: Text('Wallet — coming soon')))),
+                      ),
                       Expanded(
                           child: _NavItem(
-                              Icons.account_balance_wallet_outlined,
-                              'Wallet')),
-                      Expanded(
-                          child: _NavItem(
-                              Icons.person_outline_rounded, 'Profile')),
+                              Icons.person_outline_rounded, 'Profile',
+                              onTap: widget.onOpenProfile)),
                     ],
                   ),
                 ),
@@ -1384,44 +2086,44 @@ class _FooterState extends State<_Footer>
                     ),
                   ),
                   child: Container(
-                  height: 82,
-                  width: 82,
-                  decoration: BoxDecoration(
-                    color: AppColors.brand,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.brand.withValues(alpha: 0.4),
-                        blurRadius: 14,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      Positioned(
-                        top: 2,
-                        child: ScaleTransition(
-                          scale: _pulse,
-                          child: Image.asset(
-                              'assets/images/Footer Droplet.png',
-                              height: 30),
+                    height: 82,
+                    width: 82,
+                    decoration: BoxDecoration(
+                      color: AppColors.brand,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.brand.withValues(alpha: 0.4),
+                          blurRadius: 14,
+                          offset: const Offset(0, 6),
                         ),
-                      ),
-                      const Positioned(
-                        bottom: 16,
-                        child: Text('Products',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600)),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned(
+                          top: 2,
+                          child: ScaleTransition(
+                            scale: _pulse,
+                            child: Image.asset(
+                                'assets/images/Footer Droplet.png',
+                                height: 30),
+                          ),
+                        ),
+                        const Positioned(
+                          bottom: 16,
+                          child: Text('Products',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
                 ),
               ),
             ],
@@ -1433,25 +2135,30 @@ class _FooterState extends State<_Footer>
 }
 
 class _NavItem extends StatelessWidget {
-  const _NavItem(this.icon, this.label, {this.active = false});
+  const _NavItem(this.icon, this.label, {this.active = false, this.onTap});
   final IconData icon;
   final String label;
   final bool active;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = active ? AppColors.brand : const Color(0xFF5B6472);
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 2),
-        Text(label,
-            style: TextStyle(
-                fontSize: 10.5,
-                color: color,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
-      ],
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 2),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 10.5,
+                  color: color,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
+        ],
+      ),
     );
   }
 }

@@ -109,8 +109,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                           horizontal: 14, vertical: 14),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide:
-                            const BorderSide(color: AppColors.hairline),
+                        borderSide: const BorderSide(color: AppColors.hairline),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -255,6 +254,9 @@ class _BookingTile extends StatelessWidget {
           _kv('Event', '${b['event_type']} · ${b['cans']} cans'),
           _kv('Date', '${b['event_date']}  ${b['event_time']}'),
           _kv('Village', '${b['village']}'),
+          if (((b['discount_amount'] as num?)?.toInt() ?? 0) > 0)
+            _kv('Offer',
+                '${b['offer_code']}  -â‚¹${(b['discount_amount'] as num).toInt()}'),
           const Divider(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

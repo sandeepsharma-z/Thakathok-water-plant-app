@@ -15,13 +15,23 @@ export type DashboardData = Awaited<ReturnType<typeof getDashboardData>>;
  *  last week (the card is labelled "Last 7 Days"). */
 export async function getDashboardData(rangeKey?: string) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("bookings")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [
+    { data, error },
+    { data: customerData, error: customerError },
+  ] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    supabase.from("customers").select("mobile"),
+  ]);
 
   const all = (data ?? []) as Booking[];
-  const ok = !error;
+  const ok = !error && !customerError;
+  const customerMobiles = new Set<string>(
+    (customerData ?? []).map((customer) => customer.mobile as string),
+  );
+  for (const booking of all) customerMobiles.add(booking.mobile);
 
   // Apply the selected date range to everything except the weekly trend.
   const start = rangeStart(normalizeRange(rangeKey));
@@ -128,6 +138,7 @@ export async function getDashboardData(rangeKey?: string) {
       confirmed: confirmed.length,
       cancelled: cancelled.length,
       upcoming: upcoming.length,
+      customers: customerMobiles.size,
     },
     money: { advanceCollected, revenue, pendingDues },
     totalCans,

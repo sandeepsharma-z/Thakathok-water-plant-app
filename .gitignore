@@ -7,6 +7,9 @@ Thumbs.db
 .env.local
 .env.production
 
+# local secrets (never commit — Supabase management PAT etc.)
+.secrets.local
+
 # dependencies
 node_modules/
 vendor/

@@ -17,10 +17,10 @@ export default async function SettingsPage() {
     <>
       <header>
         <h1 className="text-[27px] font-extrabold tracking-tight text-ink">
-          Rates &amp; Charges
+          App Settings
         </h1>
         <p className="mt-1 text-[13px] text-ink-muted">
-          Only you can change these. Customers see the rate but cannot edit it.
+          Control pricing, the customer home offer, coupon rules and integrations.
         </p>
       </header>
 

@@ -8,7 +8,11 @@ import {
   ClipboardList,
   Clock,
   IndianRupee,
+  MessageSquareText,
+  Package,
   Truck,
+  Users,
+  Wallet,
   XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -24,7 +28,12 @@ export type IconName =
   | "calendar"
   | "rupee"
   | "clipboard"
-  | "alert";
+  | "alert"
+  | "users"
+  | "wallet"
+  | "package"
+  | "truck"
+  | "sms";
 
 const ICONS: Record<IconName, LucideIcon> = {
   clock: Clock,
@@ -33,6 +42,11 @@ const ICONS: Record<IconName, LucideIcon> = {
   rupee: IndianRupee,
   clipboard: ClipboardList,
   alert: AlertTriangle,
+  users: Users,
+  wallet: Wallet,
+  package: Package,
+  truck: Truck,
+  sms: MessageSquareText,
 };
 
 /* ── Status pill — icon + word, never colour alone ─────────────────── */

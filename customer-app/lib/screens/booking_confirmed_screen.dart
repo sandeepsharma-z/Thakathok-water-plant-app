@@ -75,8 +75,8 @@ class BookingConfirmedScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.offerBg,
                   borderRadius: BorderRadius.circular(16),
-                  border:
-                      Border.all(color: AppColors.brand.withValues(alpha: 0.15)),
+                  border: Border.all(
+                      color: AppColors.brand.withValues(alpha: 0.15)),
                 ),
                 child: Column(
                   children: [
@@ -90,6 +90,11 @@ class BookingConfirmedScreen extends StatelessWidget {
                         '${_fmtDate(order.eventDate)}, ${order.eventTime.format(context)}'),
                     const SizedBox(height: 10),
                     _kv('Village', order.village),
+                    if (order.hasDiscount) ...[
+                      const SizedBox(height: 10),
+                      _kv('Offer ${order.offerCode}',
+                          '-â‚¹${order.discountAmount}'),
+                    ],
                     const Divider(height: 24),
                     _kv(confirmed ? 'Advance Paid' : 'Advance Due',
                         '₹${order.advance}'),
@@ -163,8 +168,8 @@ class BookingConfirmedScreen extends StatelessWidget {
                     ),
                   ),
                   child: const Text('BACK TO HOME',
-                      style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w700)),
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -194,8 +199,18 @@ class BookingConfirmedScreen extends StatelessWidget {
 
   static String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }

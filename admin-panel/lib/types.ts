@@ -9,6 +9,7 @@ export type PaymentMethod = "online" | "cash";
 export interface Booking {
   id: string;
   booking_code: string;
+  customer_name: string;
   event_type: string;
   cans: number;
   per_can_rate: number;
@@ -23,6 +24,9 @@ export interface Booking {
   event_date: string; // YYYY-MM-DD
   event_time: string; // "10:30 AM"
   payment_method: PaymentMethod;
+  offer_code: string | null;
+  offer_discount_percent: number;
+  discount_amount: number;
   status: BookingStatus;
   created_at: string;
 }
@@ -35,6 +39,18 @@ export interface Settings {
   free_delivery_village: string;
   plant_name: string;
   plant_phone: string;
+  razorpay_key_id: string;
+  razorpay_key_secret: string;
+  fast2sms_api_key: string;
+  sms_template_order: string;
+  sms_template_delivery: string;
+  sms_template_dues: string;
+  offer_enabled: boolean;
+  offer_title: string;
+  offer_description: string;
+  offer_code: string;
+  offer_discount_percent: number;
+  offer_min_subtotal: number;
   updated_at: string;
 }
 

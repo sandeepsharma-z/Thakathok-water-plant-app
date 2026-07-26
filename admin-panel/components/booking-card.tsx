@@ -81,6 +81,11 @@ export function BookingCard({
           <h3 className="text-[17px] font-extrabold tracking-tight text-gradient">
             {b.booking_code}
           </h3>
+          {b.customer_name?.trim() ? (
+            <p className="mt-0.5 text-[13px] font-bold text-ink">
+              {b.customer_name}
+            </p>
+          ) : null}
           <p className="mt-0.5 text-[12px] text-ink-muted">
             {b.event_type} · {b.cans} cans × ₹{b.per_can_rate}
           </p>
@@ -146,6 +151,12 @@ export function BookingCard({
         <p className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-xl bg-warn-bg px-3 py-1.5 text-[11.5px] font-medium text-warn">
           <Truck className="h-3.5 w-3.5" />
           Delivery {rupees(b.delivery_charge)} — under 25 cans
+        </p>
+      ) : null}
+      {b.discount_amount > 0 ? (
+        <p className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-xl bg-ok-bg px-3 py-1.5 text-[11.5px] font-semibold text-ok">
+          Offer {b.offer_code} ({b.offer_discount_percent}%): −
+          {rupees(b.discount_amount)}
         </p>
       ) : null}
 

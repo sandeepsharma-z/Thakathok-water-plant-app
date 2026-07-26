@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/plant_config.dart';
 import '../theme/app_colors.dart';
 
-/// Plant contact + a few FAQs for the customer.
-const String kPlantPhone = '91XXXXXXXXXX';
-const String kPlantName = 'Mahalakshmi Water Plant';
+/// Plant contact + a few FAQs for the customer. Contact details are
+/// admin-controlled and loaded live from settings (never hard-coded).
+String get kPlantPhone => PlantConfig.instance.plantPhone;
+String get kPlantName => PlantConfig.instance.plantName;
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
@@ -39,12 +41,12 @@ class HelpSupportScreen extends StatelessWidget {
   ];
 
   Future<void> _call() async {
-    final uri = Uri(scheme: 'tel', path: '+$kPlantPhone');
+    final uri = Uri(scheme: 'tel', path: '+${intlPhone(kPlantPhone)}');
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   Future<void> _whatsapp() async {
-    final uri = Uri.parse('https://wa.me/$kPlantPhone');
+    final uri = Uri.parse('https://wa.me/${intlPhone(kPlantPhone)}');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }

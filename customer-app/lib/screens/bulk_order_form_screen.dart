@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/order_details.dart';
+import '../services/plant_config.dart';
+import '../services/profile_store.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
 import 'payment_screen.dart';
 
-/// Per-can rate. Admin-controlled in the real app; hard-coded for now.
-const int kPerCanRate = 45;
+/// Per-can rate — admin-controlled, loaded live from settings at app start.
+int get kPerCanRate => PlantConfig.instance.perCanRate;
 
-/// Delivery charge applied to orders under 25 cans (except Kasara Balkunda).
-/// Admin-controlled later; hard-coded for now.
-const int kDeliveryCharge = 200;
-const int kDeliveryFreeThreshold = 25;
-const String kFreeDeliveryVillage = 'Kasara Balkunda';
+/// Delivery charge applied to orders under the free threshold (except the free
+/// village). Admin-controlled, loaded live from settings.
+int get kDeliveryCharge => PlantConfig.instance.deliveryCharge;
+int get kDeliveryFreeThreshold => PlantConfig.instance.deliveryFreeThreshold;
+String get kFreeDeliveryVillage => PlantConfig.instance.freeDeliveryVillage;
 
 const List<String> kEventTypes = ['Wedding', 'Birthday', 'Other'];
 
@@ -32,7 +34,16 @@ const List<String> kVillages = [
 /// Screen 2 of the bulk-order flow — the enquiry form the customer fills in
 /// before paying the 30% advance.
 class BulkOrderFormScreen extends StatefulWidget {
-  const BulkOrderFormScreen({super.key});
+  const BulkOrderFormScreen({
+    super.key,
+    this.initialCans,
+    this.startWithCustomQuantity = false,
+    this.initialEventType,
+  });
+
+  final int? initialCans;
+  final bool startWithCustomQuantity;
+  final String? initialEventType;
 
   @override
   State<BulkOrderFormScreen> createState() => _BulkOrderFormScreenState();
@@ -49,6 +60,43 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
   String? _village;
   DateTime? _eventDate;
   TimeOfDay? _eventTime;
+
+  // Name is pulled silently from the saved on-device profile (no form field).
+  String _profileName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialEventType != null &&
+        kEventTypes.contains(widget.initialEventType)) {
+      _eventType = widget.initialEventType;
+    }
+    if (widget.startWithCustomQuantity) {
+      _cansChoice = 'Custom';
+    } else if (widget.initialCans != null) {
+      final value = widget.initialCans.toString();
+      if (kCanOptions.contains(value)) {
+        _cansChoice = value;
+      } else {
+        _cansChoice = 'Custom';
+        _customCansController.text = value;
+      }
+    }
+    _prefillFromProfile();
+  }
+
+  Future<void> _prefillFromProfile() async {
+    final p = await ProfileStore.instance.load();
+    if (!mounted) return;
+    setState(() {
+      _profileName = p.name;
+      if (_mobileController.text.isEmpty) _mobileController.text = p.mobile;
+      if (_addressController.text.isEmpty) _addressController.text = p.address;
+      if (p.village.isNotEmpty && kVillages.contains(p.village)) {
+        _village = p.village;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -119,6 +167,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
     if (!valid) return;
 
     final order = OrderDetails(
+      name: _profileName,
       eventType: _eventType!,
       cans: _cans,
       perCanRate: kPerCanRate,
@@ -324,15 +373,15 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                   border: Border.all(color: const Color(0xFFFFD9A0)),
                 ),
                 child: Row(
-                  children: const [
-                    Icon(Icons.local_shipping_outlined,
+                  children: [
+                    const Icon(Icons.local_shipping_outlined,
                         size: 18, color: Color(0xFFB26A00)),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Orders under 25 cans have a delivery charge '
-                        '(₹$kDeliveryCharge) for this village.',
-                        style: TextStyle(
+                        'Orders under $kDeliveryFreeThreshold cans have a '
+                        'delivery charge (₹$kDeliveryCharge) for this village.',
+                        style: const TextStyle(
                             fontSize: 11.5, color: Color(0xFF8A5200)),
                       ),
                     ),
@@ -372,8 +421,18 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
 
   static String _formatDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
@@ -386,8 +445,7 @@ InputDecoration _inputDecoration(String hint) {
     hintStyle: const TextStyle(color: AppColors.hint, fontSize: 13.5),
     filled: true,
     fillColor: const Color(0xFFF7FAFF),
-    contentPadding:
-        const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
       borderSide: const BorderSide(color: AppColors.hairline),
@@ -445,14 +503,13 @@ class _Dropdown extends StatelessWidget {
     return DropdownButtonFormField<String>(
       value: value,
       isExpanded: true,
-      icon: const Icon(Icons.keyboard_arrow_down_rounded,
-          color: AppColors.brand),
+      icon:
+          const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.brand),
       decoration: _inputDecoration(hint),
       hint: Text(hint,
           style: const TextStyle(color: AppColors.hint, fontSize: 13.5)),
-      items: items
-          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-          .toList(),
+      items:
+          items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
       onChanged: onChanged,
       validator: (v) => v == null ? 'Please select an option' : null,
     );
@@ -475,8 +532,9 @@ class _ReadOnlyBox extends StatelessWidget {
         color: highlight ? AppColors.offerBg : const Color(0xFFF0F0F2),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: highlight ? AppColors.brand.withValues(alpha: 0.25)
-                            : AppColors.hairline,
+          color: highlight
+              ? AppColors.brand.withValues(alpha: 0.25)
+              : AppColors.hairline,
         ),
       ),
       child: Text(

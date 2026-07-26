@@ -23,7 +23,6 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 
 import { signOut } from "@/app/login/actions";
 
@@ -38,18 +37,18 @@ type Item = {
 const ITEMS: Item[] = [
   { label: "Dashboard", href: "/", Icon: LayoutDashboard, chevron: true },
   { label: "Orders", href: "/bookings", Icon: ShoppingCart },
-  { label: "Customers", href: "#", Icon: Users, soon: true },
-  { label: "Delivery Management", href: "#", Icon: Truck, soon: true },
-  { label: "Cans Management", href: "#", Icon: Package, soon: true },
-  { label: "Pending Dues", href: "/bookings?status=confirmed", Icon: Droplet },
-  { label: "Payments & Collections", href: "/bookings?status=confirmed", Icon: Wallet },
-  { label: "Expenses", href: "#", Icon: FileBarChart, soon: true },
-  { label: "Reports & Analytics", href: "#", Icon: Activity, soon: true },
-  { label: "Branch Management", href: "#", Icon: GitBranch, soon: true },
-  { label: "SMS & Notifications", href: "#", Icon: Bell, soon: true },
+  { label: "Customers", href: "/customers", Icon: Users },
+  { label: "Delivery Management", href: "/delivery", Icon: Truck },
+  { label: "Cans Management", href: "/cans", Icon: Package, soon: true },
+  { label: "Pending Dues", href: "/pending-dues", Icon: Droplet },
+  { label: "Payments & Collections", href: "/payments", Icon: Wallet },
+  { label: "Expenses", href: "/expenses", Icon: FileBarChart, soon: true },
+  { label: "Reports & Analytics", href: "/reports", Icon: Activity, soon: true },
+  { label: "Branch Management", href: "/branches", Icon: GitBranch, soon: true },
+  { label: "SMS & Notifications", href: "/sms", Icon: Bell },
   { label: "Settings", href: "/settings", Icon: Settings },
-  { label: "Activity Logs", href: "#", Icon: LifeBuoy, soon: true },
-  { label: "Support", href: "#", Icon: HeadphonesIcon, soon: true },
+  { label: "Activity Logs", href: "/activity", Icon: LifeBuoy, soon: true },
+  { label: "Support", href: "/support", Icon: HeadphonesIcon },
 ];
 
 export function Sidebar({
@@ -62,18 +61,8 @@ export function Sidebar({
   villages?: number;
 }) {
   const pathname = usePathname();
-  const [toast, setToast] = useState<string | null>(null);
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : href !== "#" && pathname.startsWith(href);
-
-  function showSoon(label: string) {
-    setToast(`${label} — coming soon`);
-    window.clearTimeout((showSoon as unknown as { _t?: number })._t);
-    (showSoon as unknown as { _t?: number })._t = window.setTimeout(
-      () => setToast(null),
-      2200,
-    );
-  }
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col overflow-hidden bg-[linear-gradient(180deg,#1668e6_0%,#0f57cc_55%,#0b49ad_100%)] lg:flex dark:bg-[linear-gradient(180deg,#12213e_0%,#0d1a30_55%,#0a1424_100%)] dark:ring-1 dark:ring-white/5">
@@ -114,26 +103,13 @@ export function Sidebar({
               ) : null}
             </>
           );
-          return it.soon ? (
-            <button key={it.label} className={cls} onClick={() => showSoon(it.label)}>
-              {inner}
-            </button>
-          ) : (
+          return (
             <Link key={it.label} href={it.href} className={cls}>
               {inner}
             </Link>
           );
         })}
       </nav>
-
-      {/* coming-soon toast */}
-      {toast ? (
-        <div className="pointer-events-none absolute inset-x-0 top-3 z-50 flex justify-center px-3">
-          <div className="rounded-xl bg-black/70 px-3.5 py-2 text-[12px] font-semibold text-white shadow-lg backdrop-blur">
-            {toast}
-          </div>
-        </div>
-      ) : null}
 
       {/* water splash — sits BEHIND the bottom cards (screen blend drops black) */}
       <div
