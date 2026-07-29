@@ -14,6 +14,32 @@ async function adminClient(){
   return db;
 }
 
+async function functionError(
+  error:unknown,data:unknown,fallback:string,
+):Promise<string>{
+  if(data&&typeof data==="object"&&"error" in data){
+    const message=String((data as {error?:unknown}).error??"").trim();
+    if(message)return message;
+  }
+  if(error&&typeof error==="object"&&"context" in error){
+    const context=(error as {context?:unknown}).context;
+    if(context instanceof Response){
+      try{
+        const payload=await context.clone().json() as {error?:unknown};
+        const message=String(payload?.error??"").trim();
+        if(message)return message;
+      }catch{
+        try{
+          const message=(await context.clone().text()).trim();
+          if(message)return message;
+        }catch{/* Use the safe fallback below. */}
+      }
+    }
+  }
+  if(error instanceof Error&&error.message.trim())return error.message;
+  return fallback;
+}
+
 export async function createDeliveryStaff(
   _previous:StaffActionState,form:FormData,
 ):Promise<StaffActionState>{
@@ -26,7 +52,7 @@ export async function createDeliveryStaff(
       mobile:String(form.get("mobile")??"").replace(/\D/g,""),
       password:String(form.get("password")??""),
     }});
-    if(error||data?.error)return{error:data?.error??"Could not create delivery staff."};
+    if(error||data?.error)return{error:await functionError(error,data,"Could not create delivery staff.")};
     revalidatePath("/delivery-staff");
     return{ok:"Delivery staff account created."};
   }catch(error){
@@ -38,7 +64,7 @@ async function manageStaff(body:Record<string,unknown>,success:string):Promise<S
   try{
     const db=await adminClient();
     const{data,error}=await db.functions.invoke("manage-delivery-staff",{body});
-    if(error||data?.error)return{error:data?.error??"Could not update delivery staff."};
+    if(error||data?.error)return{error:await functionError(error,data,"Could not update delivery staff.")};
     revalidatePath("/delivery-staff");
     return{ok:success};
   }catch(error){
