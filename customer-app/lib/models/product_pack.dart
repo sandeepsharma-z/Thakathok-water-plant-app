@@ -16,9 +16,18 @@ class ProductPack {
   final int? cans;
 
   bool get isCustom => cans == null;
+
+  factory ProductPack.fromMap(Map<String, dynamic> map) => ProductPack(
+        name: '${map['name'] ?? ''}',
+        quantityLabel: '${map['quantity_label'] ?? ''}',
+        image: '${map['image_url'] ?? ''}',
+        description: '${map['description'] ?? ''}',
+        idealFor: '${map['ideal_for'] ?? ''}',
+        cans: (map['cans'] as num?)?.toInt(),
+      );
 }
 
-const productPacks = <ProductPack>[
+const fallbackProductPacks = <ProductPack>[
   ProductPack(
     name: 'Mini Event Pack',
     quantityLabel: '20 Cans',
@@ -64,3 +73,5 @@ const productPacks = <ProductPack>[
     idealFor: 'Any event requiring a personalised water quantity',
   ),
 ];
+
+List<ProductPack> productPacks = List<ProductPack>.from(fallbackProductPacks);

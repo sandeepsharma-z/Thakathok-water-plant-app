@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/product_pack.dart';
+import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/content_image.dart';
 import 'product_pack_details_screen.dart';
 
 class ProductSearchScreen extends StatefulWidget {
@@ -48,11 +50,11 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.brand),
+          icon: Icon(Icons.arrow_back_rounded, color: AppColors.liveBrand),
         ),
-        title: const Text(
-          'Search Products',
-          style: TextStyle(
+        title: Text(
+          AppConfigService.instance.label('screen_search'),
+          style: const TextStyle(
             color: AppColors.textDark,
             fontSize: 19,
             fontWeight: FontWeight.w800,
@@ -72,7 +74,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
               decoration: InputDecoration(
                 hintText: 'Search pack name or quantity',
                 prefixIcon:
-                    const Icon(Icons.search_rounded, color: AppColors.brand),
+                    Icon(Icons.search_rounded, color: AppColors.liveBrand),
                 suffixIcon: _search.text.isEmpty
                     ? null
                     : IconButton(
@@ -95,7 +97,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(13),
                   borderSide:
-                      const BorderSide(color: AppColors.brand, width: 1.3),
+                      BorderSide(color: AppColors.liveBrand, width: 1.3),
                 ),
               ),
             ),
@@ -136,8 +138,10 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
                                     color: const Color(0xFFF0F7FF),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: Image.asset(pack.image,
-                                      fit: BoxFit.contain),
+                                  child: ContentImage(
+                                    source: pack.image,
+                                    fit: BoxFit.contain,
+                                  ),
                                 ),
                                 const SizedBox(width: 13),
                                 Expanded(
@@ -156,8 +160,8 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
                                       const SizedBox(height: 5),
                                       Text(
                                         pack.quantityLabel,
-                                        style: const TextStyle(
-                                          color: AppColors.brand,
+                                        style: TextStyle(
+                                          color: AppColors.liveBrand,
                                           fontSize: 13,
                                           fontWeight: FontWeight.w700,
                                         ),
@@ -176,8 +180,8 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.chevron_right_rounded,
-                                    color: AppColors.brand),
+                                Icon(Icons.chevron_right_rounded,
+                                    color: AppColors.liveBrand),
                               ],
                             ),
                           ),

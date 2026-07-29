@@ -78,6 +78,8 @@ export function CustomerRow({
   address,
   avatarUrl,
   bookings,
+  walletBalance,
+  walletTransactions,
   registered = false,
 }: {
   mobile: string;
@@ -89,6 +91,15 @@ export function CustomerRow({
   address: string;
   avatarUrl: string | null;
   bookings: Booking[];
+  walletBalance: number;
+  walletTransactions: Array<{
+    id: string;
+    type: string;
+    amount: number;
+    balance_after: number;
+    description: string;
+    created_at: string;
+  }>;
   registered?: boolean;
 }) {
   const [viewOpen, setViewOpen] = useState(false);
@@ -239,6 +250,17 @@ export function CustomerRow({
                       {formatDate(booking.event_date)} · {booking.cans} cans ·{" "}
                       {booking.village}
                     </p>
+                    <p className="mt-1 text-[10.5px] font-semibold uppercase text-ink-faint">
+                      {booking.payment_method} payment · Advance{" "}
+                      {rupees(booking.advance)} · Balance{" "}
+                      {rupees(booking.balance)}
+                    </p>
+                    {booking.offer_code ? (
+                      <p className="mt-1 text-[10.5px] text-ok">
+                        Offer {booking.offer_code} · Saved{" "}
+                        {rupees(booking.discount_amount)}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="text-right">
                     <p className="text-[13px] font-extrabold text-ink">
@@ -255,6 +277,28 @@ export function CustomerRow({
                 No bookings from this customer yet.
               </div>
             )}
+          </div>
+
+          <div className="mt-6 flex items-center justify-between">
+            <h3 className="text-[15px] font-extrabold text-ink">
+              Wallet & payment history
+            </h3>
+            <span className="text-[11.5px] font-semibold text-brand">
+              Balance {rupees(walletBalance)}
+            </span>
+          </div>
+          <div className="mt-3 max-h-48 space-y-2 overflow-y-auto pr-1">
+            {walletTransactions.length ? walletTransactions.map((transaction) => (
+              <div key={transaction.id} className="flex items-center justify-between rounded-2xl border border-line bg-canvas p-3.5">
+                <div>
+                  <p className="text-[12px] font-bold text-ink">{transaction.description || "Wallet transaction"}</p>
+                  <p className="mt-0.5 text-[10.5px] text-ink-faint">{new Date(transaction.created_at).toLocaleString("en-IN")} · Balance {rupees(transaction.balance_after)}</p>
+                </div>
+                <p className={`text-[13px] font-extrabold ${transaction.type === "credit" ? "text-ok" : "text-danger"}`}>
+                  {transaction.type === "credit" ? "+" : "-"}{rupees(transaction.amount)}
+                </p>
+              </div>
+            )) : <div className="rounded-2xl border border-dashed border-line py-6 text-center text-[12px] text-ink-faint">No wallet transactions yet.</div>}
           </div>
 
           <button

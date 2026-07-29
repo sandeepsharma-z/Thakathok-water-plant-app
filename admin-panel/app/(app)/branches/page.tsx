@@ -1,11 +1,9 @@
-import { ComingSoon } from "@/components/coming-soon";
-
-export default function BranchManagementPage() {
-  return (
-    <ComingSoon
-      title="Branch Management"
-      subtitle="Manage multiple plants or outlets."
-      body="Soon you'll be able to add more plant locations, assign bookings to a branch, and track each branch's collections separately."
-    />
-  );
+import { Card, StatTile } from "@/components/ui";
+import { PageHead, buttonClass, dangerClass, inputClass } from "@/components/management-ui";
+import { createClient } from "@/lib/supabase/server";
+import { deleteBranch, saveBranch } from "../management-actions";
+export const dynamic="force-dynamic";
+export default async function BranchManagementPage(){
+ const db=await createClient(); const {data}=await db.from("branches").select("*,villages(count),can_inventory(*)").order("created_at"); const rows=data??[];
+ return <><PageHead title="Branch Management" body="Manage plants, managers and service locations from one place."/><div className="mt-5 grid gap-4 sm:grid-cols-2"><StatTile label="Total branches" value={rows.length} icon="package"/><StatTile label="Active branches" value={rows.filter(x=>x.enabled).length} icon="check" accent="ok"/></div><Card className="mt-5 p-5"><h2 className="font-extrabold text-ink">Add branch</h2><form action={saveBranch} className="mt-4 grid gap-3 md:grid-cols-3"><input required name="name" placeholder="Branch name" className={inputClass}/><input required name="code" placeholder="Code (MAIN)" className={inputClass}/><input name="manager_name" placeholder="Manager name" className={inputClass}/><input name="phone" placeholder="Phone" className={inputClass}/><input name="address" placeholder="Address" className={inputClass}/><label className="flex items-center gap-2 text-[13px]"><input type="checkbox" name="enabled" defaultChecked/> Active</label><button className={buttonClass}>Add branch</button></form></Card><div className="mt-5 grid gap-4 lg:grid-cols-2">{rows.map(b=><Card key={b.id} className="p-5"><form action={saveBranch} className="grid gap-3 sm:grid-cols-2"><input type="hidden" name="id" value={b.id}/><input name="name" defaultValue={b.name} className={inputClass}/><input name="code" defaultValue={b.code} className={inputClass}/><input name="manager_name" defaultValue={b.manager_name} className={inputClass}/><input name="phone" defaultValue={b.phone} className={inputClass}/><input name="address" defaultValue={b.address} className={`${inputClass} sm:col-span-2`}/><label className="flex items-center gap-2 text-[12px]"><input name="enabled" type="checkbox" defaultChecked={b.enabled}/> Active</label><button className={buttonClass}>Save branch</button></form><div className="mt-3 flex items-center justify-between text-[12px] text-ink-muted"><span>{b.villages?.[0]?.count??0} villages</span><form action={deleteBranch}><input type="hidden" name="id" value={b.id}/><button className={dangerClass}>Delete</button></form></div></Card>)}</div></>;
 }

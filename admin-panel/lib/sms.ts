@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import type { Booking } from "@/lib/types";
 
 // Fast2SMS DLT (Route) endpoint. The API key + template IDs live in the
@@ -15,7 +15,7 @@ interface SmsSettings {
 }
 
 async function getSmsSettings(): Promise<SmsSettings | null> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data } = await supabase
     .from("settings")
     .select(
@@ -32,14 +32,29 @@ function toLocalNumber(raw: string): string {
   return d.length > 10 ? d.slice(-10) : d;
 }
 
-/** Low-level DLT send. Returns true on Fast2SMS success. */
+export interface SmsSendResult {
+  sent: boolean;
+  skipped?: boolean;
+  message: string;
+}
+
+interface ProviderResult extends SmsSendResult {
+  requestId?: string;
+}
+
+/** Low-level DLT send. */
 async function sendDlt(
   apiKey: string,
   templateId: string,
   numbers: string,
   variables: (string | number)[],
-): Promise<boolean> {
-  if (!apiKey || !templateId || !numbers) return false;
+): Promise<ProviderResult> {
+  if (!apiKey) {
+    return { sent: false, message: "Fast2SMS API key is not configured." };
+  }
+  if (!templateId || !numbers) {
+    return { sent: false, message: "SMS template or mobile number is missing." };
+  }
   const body = new URLSearchParams({
     authorization: apiKey,
     route: "dlt",
@@ -55,46 +70,146 @@ async function sendDlt(
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
     });
-    const json = (await res.json()) as { return?: boolean };
-    return json.return === true;
+    const json = (await res.json()) as {
+      return?: boolean;
+      request_id?: string;
+      message?: string | string[];
+    };
+    const message = Array.isArray(json.message)
+      ? json.message.join(" ")
+      : String(json.message ?? "");
+    return {
+      sent: res.ok && json.return === true,
+      requestId: json.request_id,
+      message:
+        message ||
+        (res.ok && json.return === true
+          ? "SMS accepted by Fast2SMS."
+          : "Fast2SMS rejected the SMS."),
+    };
   } catch {
-    return false;
+    return { sent: false, message: "Could not connect to Fast2SMS." };
   }
+}
+
+async function wasRecentlySent(
+  bookingId: string,
+  smsType: string,
+  withinHours?: number,
+) {
+  const supabase = await createClient();
+  let query = supabase
+    .from("sms_logs")
+    .select("id")
+    .eq("booking_id", bookingId)
+    .eq("sms_type", smsType)
+    .eq("status", "sent");
+  if (withinHours) {
+    query = query.gte(
+      "created_at",
+      new Date(Date.now() - withinHours * 60 * 60 * 1000).toISOString(),
+    );
+  }
+  const { data } = await query.limit(1).maybeSingle();
+  return Boolean(data);
+}
+
+async function logSms(
+  booking: Booking,
+  smsType: string,
+  templateId: string,
+  result: ProviderResult,
+) {
+  const supabase = await createClient();
+  await supabase.from("sms_logs").insert({
+    booking_id: booking.id,
+    booking_code: booking.booking_code,
+    mobile: toLocalNumber(booking.mobile),
+    sms_type: smsType,
+    template_id: templateId,
+    status: result.skipped ? "skipped" : result.sent ? "sent" : "failed",
+    provider_request_id: result.requestId ?? null,
+    provider_message: result.message,
+  });
+}
+
+async function sendBookingSms(
+  booking: Booking,
+  smsType: "order_confirmation" | "delivery_confirmation" | "dues_reminder",
+  templateId: string,
+  apiKey: string,
+  variables: (string | number)[],
+  duplicateWindowHours?: number,
+): Promise<SmsSendResult> {
+  if (
+    await wasRecentlySent(booking.id, smsType, duplicateWindowHours)
+  ) {
+    const result: ProviderResult = {
+      sent: false,
+      skipped: true,
+      message:
+        smsType === "dues_reminder"
+          ? "A dues reminder was already sent in the last 24 hours."
+          : "This SMS was already sent.",
+    };
+    await logSms(booking, smsType, templateId, result);
+    return result;
+  }
+  const result = await sendDlt(
+    apiKey,
+    templateId,
+    toLocalNumber(booking.mobile),
+    variables,
+  );
+  await logSms(booking, smsType, templateId, result);
+  return result;
 }
 
 /**
  * Order Confirmation → customer. Variables: Booking ID, Cans, Date, Balance.
  * Best-effort: returns false silently if keys/templates aren't configured yet.
  */
-export async function sendOrderConfirmation(b: Booking): Promise<boolean> {
+export async function sendOrderConfirmation(
+  b: Booking,
+): Promise<SmsSendResult> {
   const s = await getSmsSettings();
-  if (!s) return false;
-  return sendDlt(s.fast2sms_api_key, s.sms_template_order, toLocalNumber(b.mobile), [
-    b.booking_code,
-    b.cans,
-    b.event_date,
-    b.balance,
-  ]);
+  if (!s) return { sent: false, message: "SMS settings are unavailable." };
+  return sendBookingSms(
+    b,
+    "order_confirmation",
+    s.sms_template_order,
+    s.fast2sms_api_key,
+    [b.booking_code, b.cans, b.event_date, b.balance],
+  );
 }
 
 /** Delivery Confirmation → customer. Variables: Booking ID, Cans, Contact. */
-export async function sendDeliveryConfirmation(b: Booking): Promise<boolean> {
+export async function sendDeliveryConfirmation(
+  b: Booking,
+): Promise<SmsSendResult> {
   const s = await getSmsSettings();
-  if (!s) return false;
-  return sendDlt(
-    s.fast2sms_api_key,
+  if (!s) return { sent: false, message: "SMS settings are unavailable." };
+  return sendBookingSms(
+    b,
+    "delivery_confirmation",
     s.sms_template_delivery,
-    toLocalNumber(b.mobile),
+    s.fast2sms_api_key,
     [b.booking_code, b.cans, s.plant_phone],
   );
 }
 
 /** Pending Dues Reminder → customer. Variables: Balance, Booking ID. */
-export async function sendDuesReminder(b: Booking): Promise<boolean> {
+export async function sendDuesReminder(
+  b: Booking,
+): Promise<SmsSendResult> {
   const s = await getSmsSettings();
-  if (!s) return false;
-  return sendDlt(s.fast2sms_api_key, s.sms_template_dues, toLocalNumber(b.mobile), [
-    b.balance,
-    b.booking_code,
-  ]);
+  if (!s) return { sent: false, message: "SMS settings are unavailable." };
+  return sendBookingSms(
+    b,
+    "dues_reminder",
+    s.sms_template_dues,
+    s.fast2sms_api_key,
+    [b.balance, b.booking_code],
+    24,
+  );
 }

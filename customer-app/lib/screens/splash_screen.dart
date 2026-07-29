@@ -77,40 +77,40 @@ class _SplashScreenState extends State<SplashScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const BrandLogo(size: 108),
-                  const SizedBox(height: 26),
+                  SizedBox(height: 26),
                   Text(
                     'MAHALAKSHMI',
                     style: TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.5,
-                      color: AppColors.primaryDark,
+                      color: AppColors.liveBrand,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     'W A T E R   P L A N T',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 4,
-                      color: AppColors.primary,
+                      color: AppColors.liveBrand,
                     ),
                   ),
                   const SizedBox(height: 18),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 7),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Bulk Water Supply for Events',
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.primaryDark,
+                        color: AppColors.liveBrand,
                       ),
                     ),
                   ),

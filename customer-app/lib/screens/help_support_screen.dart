@@ -1,44 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/home_content_service.dart';
 import '../services/plant_config.dart';
+import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
 
-/// Plant contact + a few FAQs for the customer. Contact details are
-/// admin-controlled and loaded live from settings (never hard-coded).
 String get kPlantPhone => PlantConfig.instance.plantPhone;
 String get kPlantName => PlantConfig.instance.plantName;
 
-class HelpSupportScreen extends StatelessWidget {
+class HelpSupportScreen extends StatefulWidget {
   const HelpSupportScreen({super.key});
 
-  static const _faqs = [
-    (
-      'How do I place a bulk order?',
-      'Tap "Request Bulk Order" on the home screen, fill in your event details, '
-          'and pay the 30% advance to confirm.',
-    ),
-    (
-      'Why do I pay 30% advance?',
-      'The 30% advance confirms your booking and blocks your event date. The '
-          'remaining 70% is paid as cash on delivery.',
-    ),
-    (
-      'Is the advance refundable?',
-      'No — the 30% advance is non-refundable. If you cancel, the date is not '
-          'unblocked.',
-    ),
-    (
-      'When is a delivery charge added?',
-      'A delivery charge applies only to orders under 25 cans, for every '
-          'village except Kasara Balkunda (which is free).',
-    ),
-    (
-      'How will I know my booking is confirmed?',
-      'Online payments confirm instantly. For cash, the plant confirms once the '
-          'advance is received — you can track it under "My Bookings".',
-    ),
-  ];
+  @override
+  State<HelpSupportScreen> createState() => _HelpSupportScreenState();
+}
+
+class _HelpSupportScreenState extends State<HelpSupportScreen> {
+  @override
+  void initState() {
+    super.initState();
+    HomeContentService.instance.load().then((_) {
+      if (mounted) setState(() {});
+    });
+  }
 
   Future<void> _call() async {
     final uri = Uri(scheme: 'tel', path: '+${intlPhone(kPlantPhone)}');
@@ -54,6 +39,7 @@ class HelpSupportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final content = HomeContentService.instance.support;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -61,38 +47,46 @@ class HelpSupportScreen extends StatelessWidget {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.brand),
+          icon: Icon(Icons.arrow_back, color: AppColors.liveBrand),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: const Text('Help & Support',
-            style: TextStyle(
-                color: AppColors.brand,
-                fontWeight: FontWeight.w700,
-                fontSize: 19)),
+        title: Text(
+          AppConfigService.instance.label('screen_support'),
+          style: TextStyle(
+            color: AppColors.liveBrand,
+            fontWeight: FontWeight.w700,
+            fontSize: 19,
+          ),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
         children: [
-          // contact card
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: AppColors.blueGradient,
+              gradient: AppColors.liveBlueGradient,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Need help with an order?',
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700)),
+                Text(
+                  content.heading,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text('Reach out to $kPlantName directly.',
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12.5)),
+                Text(
+                  content.description.replaceAll('{plant_name}', kPlantName),
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 12.5,
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -117,17 +111,23 @@ class HelpSupportScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          const Text('Frequently asked',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textDark)),
+          Text(
+            content.sectionTitle,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textDark,
+            ),
+          ),
           const SizedBox(height: 8),
-          for (final f in _faqs) _FaqItem(question: f.$1, answer: f.$2),
+          for (final faq in content.faqs)
+            _FaqItem(question: faq.question, answer: faq.answer),
           const SizedBox(height: 20),
           Center(
-            child: Text('$kPlantName · ThakaThok',
-                style: const TextStyle(fontSize: 11.5, color: AppColors.hint)),
+            child: Text(
+              '$kPlantName Â· ThakaThok',
+              style: const TextStyle(fontSize: 11.5, color: AppColors.hint),
+            ),
           ),
         ],
       ),
@@ -136,8 +136,12 @@ class HelpSupportScreen extends StatelessWidget {
 }
 
 class _ContactBtn extends StatelessWidget {
-  const _ContactBtn(
-      {required this.icon, required this.label, required this.onTap});
+  const _ContactBtn({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -151,17 +155,20 @@ class _ContactBtn extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: EdgeInsets.symmetric(vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 19, color: AppColors.brand),
+              Icon(icon, size: 19, color: AppColors.liveBrand),
               const SizedBox(width: 8),
-              Text(label,
-                  style: const TextStyle(
-                      color: AppColors.brand,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: AppColors.liveBrand,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
         ),
@@ -172,6 +179,7 @@ class _ContactBtn extends StatelessWidget {
 
 class _FaqItem extends StatelessWidget {
   const _FaqItem({required this.question, required this.answer});
+
   final String question;
   final String answer;
 
@@ -187,21 +195,29 @@ class _FaqItem extends StatelessWidget {
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-          childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-          iconColor: AppColors.brand,
-          collapsedIconColor: AppColors.brand,
-          title: Text(question,
-              style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textDark)),
+          tilePadding: EdgeInsets.symmetric(horizontal: 14),
+          childrenPadding: EdgeInsets.fromLTRB(14, 0, 14, 12),
+          iconColor: AppColors.liveBrand,
+          collapsedIconColor: AppColors.liveBrand,
+          title: Text(
+            question,
+            style: const TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textDark,
+            ),
+          ),
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(answer,
-                  style: const TextStyle(
-                      fontSize: 12.5, color: AppColors.body, height: 1.4)),
+              child: Text(
+                answer,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: AppColors.body,
+                  height: 1.4,
+                ),
+              ),
             ),
           ],
         ),

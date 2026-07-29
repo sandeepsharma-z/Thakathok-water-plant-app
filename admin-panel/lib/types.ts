@@ -4,7 +4,7 @@ export type BookingStatus =
   | "cancelled"
   | "delivered";
 
-export type PaymentMethod = "online" | "cash";
+export type PaymentMethod = "online" | "cash" | "wallet";
 
 export interface Booking {
   id: string;
@@ -18,6 +18,9 @@ export interface Booking {
   grand_total: number;
   advance: number;
   balance: number;
+  fully_paid_at: string | null;
+  all_done_at: string | null;
+  all_done_by: string | null;
   village: string;
   mobile: string;
   address: string;
@@ -45,6 +48,7 @@ export interface Settings {
   sms_template_order: string;
   sms_template_delivery: string;
   sms_template_dues: string;
+  sms_template_cash_alert: string;
   offer_enabled: boolean;
   offer_title: string;
   offer_description: string;

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../models/order_details.dart';
+import '../services/booking_payment_service.dart';
 import '../services/booking_service.dart';
 import '../services/plant_config.dart';
+import '../services/app_config_service.dart';
+import '../services/wallet_booking_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
 import 'booking_confirmed_screen.dart';
@@ -12,7 +15,7 @@ import 'booking_confirmed_screen.dart';
 String get kPlantName => PlantConfig.instance.plantName;
 String get kPlantPhone => PlantConfig.instance.plantPhone;
 
-/// Screen 3 — order summary + 30% non-refundable advance with two payment
+/// Screen 3 â€” order summary + 30% non-refundable advance with two payment
 /// options (online instant-confirm, or cash manual-confirm).
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key, required this.order});
@@ -28,6 +31,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
   late final Razorpay _razorpay;
   final _offerCode = TextEditingController();
   bool _checkingOffer = false;
+  bool _creatingOnlineOrder = false;
+  bool _verifyingOnlinePayment = false;
+  String? _secureOrderId;
+  int _walletBalance = 0;
+  bool _walletPaying = false;
 
   @override
   void initState() {
@@ -37,6 +45,15 @@ class _PaymentScreenState extends State<PaymentScreen> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaySuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPayError);
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
+    _loadWalletBalance();
+  }
+
+  Future<void> _loadWalletBalance() async {
+    try {
+      final summary =
+          await BookingService.instance.customerHomeSummary(order.mobile);
+      if (mounted) setState(() => _walletBalance = summary.walletBalance);
+    } catch (_) {}
   }
 
   @override
@@ -48,6 +65,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final config = AppConfigService.instance;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -55,64 +73,64 @@ class _PaymentScreenState extends State<PaymentScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.brand),
+          icon: Icon(Icons.arrow_back, color: AppColors.liveBrand),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         centerTitle: true,
         title: const BrandLogo(size: 38),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
+        padding: EdgeInsets.fromLTRB(18, 4, 18, 28),
         children: [
-          const Text(
-            'Confirm & Pay Advance',
+          Text(
+            config.label('payment_title'),
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: AppColors.brand,
+              color: AppColors.liveBrand,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Pay 30% advance to confirm your booking for '
+            'Pay ${config.advancePercent}% advance to confirm your booking for '
             '${order.eventType.toLowerCase()}.',
             style: const TextStyle(fontSize: 12.5, color: AppColors.body),
           ),
           const SizedBox(height: 20),
 
-          // ── Order summary card ──────────────────────────────────────
+          // â”€â”€ Order summary card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: AppColors.offerBg,
               borderRadius: BorderRadius.circular(14),
-              border:
-                  Border.all(color: AppColors.brand.withValues(alpha: 0.15)),
+              border: Border.all(
+                  color: AppColors.liveBrand.withValues(alpha: 0.15)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Order Summary',
+                Text(config.label('payment_summary_heading'),
                     style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.brand)),
+                        color: AppColors.liveBrand)),
                 const SizedBox(height: 14),
-                _row('${order.cans} Cans × ₹${order.perCanRate}/Can',
-                    '₹${order.subtotal}'),
+                _row('${order.cans} Cans Ã— â‚¹${order.perCanRate}/Can',
+                    'â‚¹${order.subtotal}'),
                 if (order.deliveryCharge > 0) ...[
                   const SizedBox(height: 8),
-                  _row('Delivery Charge', '₹${order.deliveryCharge}'),
+                  _row('Delivery Charge', 'â‚¹${order.deliveryCharge}'),
                 ],
                 if (order.hasDiscount) ...[
                   const SizedBox(height: 8),
                   _row(
                     'Offer ${order.offerCode} (${order.offerDiscountPercent}%)',
-                    '-â‚¹${order.discountAmount}',
+                    '-Ã¢â€šÂ¹${order.discountAmount}',
                   ),
                 ],
                 const Divider(height: 22),
-                _row('Total', '₹${order.grandTotal}', bold: true),
+                _row('Total', 'â‚¹${order.grandTotal}', bold: true),
               ],
             ),
           ),
@@ -161,11 +179,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               ? _removeOffer
                               : _applyOffer,
                       child: _checkingOffer
-                          ? const SizedBox(
+                          ? SizedBox(
                               height: 18,
                               width: 18,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: AppColors.brand),
+                                  strokeWidth: 2, color: AppColors.liveBrand),
                             )
                           : Text(order.hasDiscount ? 'Remove' : 'Apply'),
                     ),
@@ -174,7 +192,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 if (order.hasDiscount) ...[
                   const SizedBox(height: 6),
                   Text(
-                    'You saved â‚¹${order.discountAmount} with ${order.offerCode}.',
+                    'You saved Ã¢â€šÂ¹${order.discountAmount} with ${order.offerCode}.',
                     style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
@@ -186,7 +204,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 18),
 
-          // ── Non-refundable warning ──────────────────────────────────
+          // â”€â”€ Non-refundable warning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -195,19 +213,19 @@ class _PaymentScreenState extends State<PaymentScreen> {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFFF5C2C2)),
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '⚠️ 30% Advance is NON-REFUNDABLE',
-                  style: TextStyle(
+                  'âš ï¸ ${config.advancePercent}% ${config.paymentText('advance_warning')}',
+                  style: const TextStyle(
                     color: Color(0xFFD32020),
                     fontWeight: FontWeight.w800,
                     fontSize: 13.5,
                   ),
                 ),
-                SizedBox(height: 4),
-                Text(
+                const SizedBox(height: 4),
+                const Text(
                   'If cancelled, the event date will not be unblocked.',
                   style: TextStyle(color: Color(0xFF9A3A3A), fontSize: 11.5),
                 ),
@@ -216,7 +234,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 16),
 
-          // ── Advance / balance split ─────────────────────────────────
+          // â”€â”€ Advance / balance split â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -226,22 +244,26 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
             child: Column(
               children: [
-                _row('30% Advance to Confirm Booking', '₹${order.advance}',
+                _row('${config.advancePercent}% Advance to Confirm Booking',
+                    'â‚¹${order.advance}',
                     highlight: true, big: true),
                 const SizedBox(height: 10),
-                _row('Balance 70% (Cash on Delivery)', '₹${order.balance}'),
+                _row('Balance ${config.balancePercent}% (Cash on Delivery)',
+                    'â‚¹${order.balance}'),
               ],
             ),
           ),
           const SizedBox(height: 26),
 
-          // ── Option 1: Pay online ────────────────────────────────────
+          // â”€â”€ Option 1: Pay online â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           SizedBox(
             height: 54,
             child: ElevatedButton(
-              onPressed: _payOnline,
+              onPressed: _creatingOnlineOrder || _verifyingOnlinePayment
+                  ? null
+                  : _payOnline,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.brand,
+                backgroundColor: AppColors.liveBrand,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -251,10 +273,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('PAY ₹${order.advance} ONLINE',
+                  Text('PAY â‚¹${order.advance} ONLINE',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w700)),
-                  const Text('UPI • GPay • PhonePe',
+                  const Text('UPI â€¢ GPay â€¢ PhonePe',
                       style: TextStyle(
                           fontSize: 10.5, fontWeight: FontWeight.w400)),
                 ],
@@ -263,14 +285,47 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 12),
 
-          // ── Option 2: Pay cash ──────────────────────────────────────
+          SizedBox(
+            height: 58,
+            child: OutlinedButton.icon(
+              onPressed: _walletPaying ? null : _payFromWallet,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF12855A),
+                side: const BorderSide(color: Color(0xFF28A772), width: 1.4),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: _walletPaying
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Color(0xFF12855A)))
+                  : const Icon(Icons.account_balance_wallet_rounded),
+              label: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('PAY â‚¹${order.advance} FROM WALLET',
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.w700)),
+                  Text('Available balance: â‚¹$_walletBalance',
+                      style: const TextStyle(
+                          fontSize: 10.5, fontWeight: FontWeight.w400)),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 12),
+
+          // â”€â”€ Option 3: Pay cash â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           SizedBox(
             height: 54,
             child: OutlinedButton(
               onPressed: _payCash,
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.brand,
-                side: const BorderSide(color: AppColors.brand, width: 1.4),
+                foregroundColor: AppColors.liveBrand,
+                side: BorderSide(color: AppColors.liveBrand, width: 1.4),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -278,7 +333,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('PAY ₹${order.advance} CASH',
+                  Text('PAY â‚¹${order.advance} CASH',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w700)),
                   Text('to $kPlantName',
@@ -300,7 +355,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  // Online → open Razorpay checkout for the 30% advance.
+  // Online â†’ open Razorpay checkout for the 30% advance.
   Future<void> _applyOffer() async {
     final entered = _offerCode.text.trim().toUpperCase();
     if (entered.isEmpty) {
@@ -326,7 +381,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
     if (order.subtotal < settings.offerMinSubtotal) {
       _showOfferMessage(
-          'Minimum product subtotal is â‚¹${settings.offerMinSubtotal}.');
+          'Minimum product subtotal is Ã¢â€šÂ¹${settings.offerMinSubtotal}.');
       return;
     }
 
@@ -355,35 +410,87 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  void _payOnline() {
-    final keyId = PlantConfig.instance.razorpayKeyId.trim();
-    if (keyId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Online payment isn\'t set up yet — please choose Cash.'),
-      ));
-      return;
-    }
+  Future<void> _payOnline() async {
+    setState(() => _creatingOnlineOrder = true);
     try {
+      final secureOrder =
+          await BookingPaymentService.instance.createOrder(order);
+      if (!mounted) return;
+      _secureOrderId = secureOrder.orderId;
       _razorpay.open({
-        'key': keyId,
-        'amount': order.advance * 100, // Razorpay works in paise.
+        'key': secureOrder.keyId,
+        'order_id': secureOrder.orderId,
+        'amount': secureOrder.amountPaise,
         'currency': 'INR',
-        'name': PlantConfig.instance.plantName,
+        'name': secureOrder.plantName,
         'description': 'Advance for booking ${order.bookingId}',
         'prefill': {'contact': order.mobile},
         'theme': {'color': '#004FDA'},
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Could not open payment. Please try again.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_paymentError(error)),
       ));
+    } finally {
+      if (mounted) setState(() => _creatingOnlineOrder = false);
     }
   }
 
-  // Payment captured → confirm the booking.
-  void _onPaySuccess(PaymentSuccessResponse response) {
-    _confirm(method: 'online', status: 'confirmed', paidOnline: true);
+  // The client callback is not trusted. The server verifies signature, exact
+  // amount, captured payment and paid order before inserting the booking.
+  Future<void> _onPaySuccess(PaymentSuccessResponse response) async {
+    if (_verifyingOnlinePayment) return;
+    final orderId = response.orderId ?? _secureOrderId ?? '';
+    final paymentId = response.paymentId ?? '';
+    final signature = response.signature ?? '';
+    if (orderId.isEmpty || paymentId.isEmpty || signature.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Incomplete secure payment response. Please contact support.'),
+        ));
+      }
+      return;
+    }
+    setState(() => _verifyingOnlinePayment = true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: AppColors.liveBrand),
+      ),
+    );
+    try {
+      await BookingPaymentService.instance.verify(
+        orderId: orderId,
+        paymentId: paymentId,
+        signature: signature,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              BookingConfirmedScreen(order: order, paidOnline: true),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_paymentError(error)),
+      ));
+    } finally {
+      if (mounted) setState(() => _verifyingOnlinePayment = false);
+    }
+  }
+
+  String _paymentError(Object error) {
+    final text = error.toString();
+    final match = RegExp(r'error:\s*([^,}\]]+)').firstMatch(text);
+    return match?.group(1)?.trim() ??
+        'Secure payment could not be completed. Please try again.';
   }
 
   void _onPayError(PaymentFailureResponse response) {
@@ -398,7 +505,54 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   void _onExternalWallet(ExternalWalletResponse response) {}
 
-  // Cash → show instructions; booking stays pending until admin confirms.
+  Future<void> _payFromWallet() async {
+    if (_walletBalance < order.advance) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            'Insufficient wallet balance. Add â‚¹${order.advance - _walletBalance} more.'),
+      ));
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pay from wallet?'),
+        content: Text(
+          'â‚¹${order.advance} will be deducted from your wallet to confirm this booking.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('CANCEL')),
+          ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('PAY & CONFIRM')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _walletPaying = true);
+    try {
+      final result = await WalletBookingService.instance.pay(order);
+      if (!mounted) return;
+      setState(() => _walletBalance = result.balance);
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) =>
+              BookingConfirmedScreen(order: order, paidOnline: true),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_paymentError(error))),
+      );
+    } finally {
+      if (mounted) setState(() => _walletPaying = false);
+    }
+  }
+
+  // Cash â†’ show instructions; booking stays pending until admin confirms.
   void _payCash() {
     showModalBottomSheet(
       context: context,
@@ -424,8 +578,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(color: AppColors.brand),
+      builder: (_) => Center(
+        child: CircularProgressIndicator(color: AppColors.liveBrand),
       ),
     );
 
@@ -442,8 +596,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     if (error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save booking. Please try again.'),
+        SnackBar(
+          content: Text(
+            error.toString().contains('CUSTOMER_NOT_ELIGIBLE')
+                ? 'Previous payment/order is still pending. Complete it before placing a new order.'
+                : error.toString().contains('DATE_UNAVAILABLE')
+                    ? AppConfigService.instance.label('date_unavailable_error')
+                    : AppConfigService.instance.label('booking_save_error'),
+          ),
         ),
       );
       return;
@@ -468,7 +628,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               style: TextStyle(
                 fontSize: big ? 13.5 : (bold ? 15 : 13),
                 fontWeight: bold || big ? FontWeight.w700 : FontWeight.w500,
-                color: highlight ? AppColors.brand : AppColors.body,
+                color: highlight ? AppColors.liveBrand : AppColors.body,
               )),
         ),
         Text(value,
@@ -476,7 +636,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               fontSize: big ? 20 : (bold ? 16 : 14),
               fontWeight: FontWeight.w800,
               color: highlight
-                  ? AppColors.brand
+                  ? AppColors.liveBrand
                   : (bold ? AppColors.textDark : AppColors.body),
             )),
       ],
@@ -492,6 +652,12 @@ class _CashInstructionsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final config = AppConfigService.instance;
+    final replacements = {
+      'advance': 'â‚¹${order.advance}',
+      'plant_name': kPlantName,
+      'plant_phone': kPlantPhone,
+    };
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
       child: Column(
@@ -508,17 +674,23 @@ class _CashInstructionsSheet extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 18),
-          const Text('Cash Payment Selected',
+          SizedBox(height: 18),
+          Text(config.paymentText('cash_heading'),
               style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.brand)),
+                  color: AppColors.liveBrand)),
           const SizedBox(height: 16),
-          _step('1', 'Note down Booking ID: ', bold: order.bookingId),
+          _step('1', '${config.paymentText('cash_step_1')} ',
+              bold: order.bookingId),
           _step(
-              '2', 'Pay ₹${order.advance} cash to $kPlantName within 24 hours'),
-          _step('3', 'Call / WhatsApp $kPlantPhone with your Booking ID'),
+              '2',
+              config.interpolate(
+                  config.paymentText('cash_step_2'), replacements)),
+          _step(
+              '3',
+              config.interpolate(
+                  config.paymentText('cash_step_3'), replacements)),
           const SizedBox(height: 14),
           Container(
             width: double.infinity,
@@ -527,10 +699,9 @@ class _CashInstructionsSheet extends StatelessWidget {
               color: const Color(0xFFFDECEC),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Text(
-              '⚠️ Booking will be CONFIRMED only after cash is received.\n'
-              'Date is not blocked until the advance is paid.',
-              style: TextStyle(
+            child: Text(
+              'âš ï¸ ${config.paymentText('cash_notice')}',
+              style: const TextStyle(
                   color: Color(0xFFD32020),
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600),
@@ -546,16 +717,16 @@ class _CashInstructionsSheet extends StatelessWidget {
                 onConfirm();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.brand,
+                backgroundColor: AppColors.liveBrand,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('I WILL PAY CASH',
-                  style:
-                      TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
+              child: Text(config.paymentText('cash_button'),
+                  style: const TextStyle(
+                      fontSize: 14.5, fontWeight: FontWeight.w700)),
             ),
           ),
         ],
@@ -573,8 +744,8 @@ class _CashInstructionsSheet extends StatelessWidget {
             width: 22,
             height: 22,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: AppColors.brand,
+            decoration: BoxDecoration(
+              color: AppColors.liveBrand,
               shape: BoxShape.circle,
             ),
             child: Text(n,
@@ -594,9 +765,9 @@ class _CashInstructionsSheet extends StatelessWidget {
                   if (bold != null)
                     TextSpan(
                         text: bold,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontWeight: FontWeight.w800,
-                            color: AppColors.brand)),
+                            color: AppColors.liveBrand)),
                 ],
               ),
             ),

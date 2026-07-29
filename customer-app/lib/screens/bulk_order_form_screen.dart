@@ -2,36 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../models/order_details.dart';
+import '../services/auth_service.dart';
+import '../services/app_config_service.dart';
+import '../services/booking_service.dart';
 import '../services/plant_config.dart';
 import '../services/profile_store.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
 import 'payment_screen.dart';
 
-/// Per-can rate — admin-controlled, loaded live from settings at app start.
+/// Per-can rate â€” admin-controlled, loaded live from settings at app start.
 int get kPerCanRate => PlantConfig.instance.perCanRate;
 
 /// Delivery charge applied to orders under the free threshold (except the free
 /// village). Admin-controlled, loaded live from settings.
-int get kDeliveryCharge => PlantConfig.instance.deliveryCharge;
 int get kDeliveryFreeThreshold => PlantConfig.instance.deliveryFreeThreshold;
 String get kFreeDeliveryVillage => PlantConfig.instance.freeDeliveryVillage;
 
-const List<String> kEventTypes = ['Wedding', 'Birthday', 'Other'];
+List<String> get kEventTypes => AppConfigService.instance.eventTypes;
 
-const List<String> kCanOptions = ['20', '50', '100', '150', 'Custom'];
+List<String> get kCanOptions => [
+      ...AppConfigService.instance.quantityOptions.map((item) => '$item'),
+      'Custom',
+    ];
 
-const List<String> kVillages = [
-  'Kasara Balkunda',
-  'Sardarwadi',
-  'Tambala',
-  'Chilwantwadi',
-  'Pirupatelvadi',
-  'Devi Hallali',
-  'Mamdapur',
-];
+List<String> get kVillages => PlantConfig.instance.villages;
 
-/// Screen 2 of the bulk-order flow — the enquiry form the customer fills in
+/// Screen 2 of the bulk-order flow â€” the enquiry form the customer fills in
 /// before paying the 30% advance.
 class BulkOrderFormScreen extends StatefulWidget {
   const BulkOrderFormScreen({
@@ -86,11 +83,16 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
   }
 
   Future<void> _prefillFromProfile() async {
-    final p = await ProfileStore.instance.load();
+    final results = await Future.wait([
+      ProfileStore.instance.load(),
+      AuthService.instance.currentMobile(),
+    ]);
+    final p = results[0] as CustomerProfile;
+    final accountMobile = results[1] as String?;
     if (!mounted) return;
     setState(() {
       _profileName = p.name;
-      if (_mobileController.text.isEmpty) _mobileController.text = p.mobile;
+      _mobileController.text = accountMobile ?? p.mobile;
       if (_addressController.text.isEmpty) _addressController.text = p.address;
       if (p.village.isNotEmpty && kVillages.contains(p.village)) {
         _village = p.village;
@@ -123,18 +125,40 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
       _village != null &&
       _village != kFreeDeliveryVillage;
 
-  int get _deliveryCharge => _hasDeliveryCharge ? kDeliveryCharge : 0;
+  int get _deliveryCharge => _hasDeliveryCharge
+      ? PlantConfig.instance.deliveryChargeForVillage(_village!)
+      : 0;
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final lastDate = now.add(const Duration(days: 365));
+    Set<String> unavailable = const {};
+    try {
+      unavailable = await BookingService.instance.unavailableDates(
+        from: now,
+        to: lastDate,
+      );
+    } catch (_) {
+      // Server-side enforcement still protects the booking if loading fails.
+    }
+    if (!mounted) return;
+    String dateKey(DateTime date) => '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+    var initialDate = _eventDate ?? now.add(const Duration(days: 1));
+    while (unavailable.contains(dateKey(initialDate)) &&
+        initialDate.isBefore(lastDate)) {
+      initialDate = initialDate.add(const Duration(days: 1));
+    }
     final picked = await showDatePicker(
       context: context,
-      initialDate: _eventDate ?? now.add(const Duration(days: 1)),
+      initialDate: initialDate,
       firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
+      lastDate: lastDate,
+      selectableDayPredicate: (date) => !unavailable.contains(dateKey(date)),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: AppColors.brand),
+          colorScheme: ColorScheme.light(primary: AppColors.liveBrand),
         ),
         child: child!,
       ),
@@ -145,10 +169,10 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
       context: context,
-      initialTime: _eventTime ?? const TimeOfDay(hour: 10, minute: 0),
+      initialTime: _eventTime ?? TimeOfDay(hour: 10, minute: 0),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(primary: AppColors.brand),
+          colorScheme: ColorScheme.light(primary: AppColors.liveBrand),
         ),
         child: child!,
       ),
@@ -156,15 +180,70 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
     if (picked != null) setState(() => _eventTime = picked);
   }
 
-  void _submit() {
+  Future<void> _submit() async {
+    await PlantConfig.instance.load();
+    if (!mounted) return;
+    if (_village == null || !kVillages.contains(_village)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('This delivery village is no longer available.')),
+      );
+      return;
+    }
     final valid = _formKey.currentState?.validate() ?? false;
     if (_eventDate == null || _eventTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select event date & time')),
+        SnackBar(
+          content: Text(
+            AppConfigService.instance.label('date_required_error'),
+          ),
+        ),
       );
       return;
     }
     if (!valid) return;
+
+    try {
+      final available =
+          await BookingService.instance.isDateAvailable(_eventDate!);
+      if (!available) {
+        if (!mounted) return;
+        setState(() => _eventDate = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppConfigService.instance.label('date_unavailable_error'),
+            ),
+          ),
+        );
+        return;
+      }
+    } catch (_) {
+      // Final database/checkout validation remains authoritative.
+    }
+
+    final eligibility = await BookingService.instance.customerOrderEligibility(
+      _mobileController.text.trim(),
+    );
+    if (!mounted) return;
+    if (!eligibility.eligible) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: Icon(Icons.lock_outline_rounded,
+              color: AppColors.liveBrand, size: 34),
+          title: const Text('New order unavailable'),
+          content: Text(eligibility.reason),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     final order = OrderDetails(
       name: _profileName,
@@ -193,7 +272,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.brand),
+          icon: Icon(Icons.arrow_back, color: AppColors.liveBrand),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         centerTitle: true,
@@ -202,14 +281,14 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
+          padding: EdgeInsets.fromLTRB(18, 4, 18, 28),
           children: [
-            const Text(
-              'Bulk Order Enquiry',
+            Text(
+              AppConfigService.instance.label('booking_form_title'),
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
-                color: AppColors.brand,
+                color: AppColors.liveBrand,
               ),
             ),
             const SizedBox(height: 4),
@@ -263,7 +342,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Per Can Rate'),
-                      _ReadOnlyBox('₹ $kPerCanRate / Can'),
+                      _ReadOnlyBox('â‚¹ $kPerCanRate / Can'),
                     ],
                   ),
                 ),
@@ -274,7 +353,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                     children: [
                       _FieldLabel('Total Amount'),
                       _ReadOnlyBox(
-                        _cans > 0 ? '₹ $_total' : '₹ 0',
+                        _cans > 0 ? 'â‚¹ $_total' : 'â‚¹ 0',
                         highlight: true,
                       ),
                     ],
@@ -317,12 +396,14 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
             _FieldLabel('Mobile Number'),
             TextFormField(
               controller: _mobileController,
+              readOnly: true,
               keyboardType: TextInputType.phone,
               inputFormatters: [
                 FilteringTextInputFormatter.digitsOnly,
                 LengthLimitingTextInputFormatter(10),
               ],
               decoration: _inputDecoration('XXXXX XXXXX').copyWith(
+                suffixIcon: const Icon(Icons.lock_outline_rounded, size: 18),
                 prefixText: '+91  ',
                 prefixStyle: const TextStyle(
                   color: AppColors.textDark,
@@ -380,7 +461,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                     Expanded(
                       child: Text(
                         'Orders under $kDeliveryFreeThreshold cans have a '
-                        'delivery charge (₹$kDeliveryCharge) for this village.',
+                        'delivery charge (â‚¹$_deliveryCharge) for this village.',
                         style: const TextStyle(
                             fontSize: 11.5, color: Color(0xFF8A5200)),
                       ),
@@ -390,22 +471,22 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
               ),
             ],
 
-            const SizedBox(height: 28),
+            SizedBox(height: 28),
             SizedBox(
               height: 52,
               child: ElevatedButton(
                 onPressed: _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.brand,
+                  backgroundColor: AppColors.liveBrand,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'REQUEST BULK ORDER',
-                  style: TextStyle(
+                child: Text(
+                  AppConfigService.instance.label('request_order_button'),
+                  style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
@@ -438,7 +519,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
   }
 }
 
-// ── Shared field styling ──────────────────────────────────────────────
+// â”€â”€ Shared field styling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 InputDecoration _inputDecoration(String hint) {
   return InputDecoration(
     hintText: hint,
@@ -448,11 +529,11 @@ InputDecoration _inputDecoration(String hint) {
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: AppColors.hairline),
+      borderSide: BorderSide(color: AppColors.hairline),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
-      borderSide: const BorderSide(color: AppColors.brand, width: 1.4),
+      borderSide: BorderSide(color: AppColors.liveBrand, width: 1.4),
     ),
     errorBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
@@ -501,10 +582,9 @@ class _Dropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
-      icon:
-          const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.brand),
+      icon: Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.liveBrand),
       decoration: _inputDecoration(hint),
       hint: Text(hint,
           style: const TextStyle(color: AppColors.hint, fontSize: 13.5)),
@@ -529,11 +609,11 @@ class _ReadOnlyBox extends StatelessWidget {
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: highlight ? AppColors.offerBg : const Color(0xFFF0F0F2),
+        color: highlight ? AppColors.offerBg : Color(0xFFF0F0F2),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: highlight
-              ? AppColors.brand.withValues(alpha: 0.25)
+              ? AppColors.liveBrand.withValues(alpha: 0.25)
               : AppColors.hairline,
         ),
       ),
@@ -542,7 +622,7 @@ class _ReadOnlyBox extends StatelessWidget {
         style: TextStyle(
           fontSize: 14.5,
           fontWeight: FontWeight.w700,
-          color: highlight ? AppColors.brand : AppColors.body,
+          color: highlight ? AppColors.liveBrand : AppColors.body,
         ),
       ),
     );
@@ -571,13 +651,13 @@ class _PickerBox extends StatelessWidget {
         height: 50,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFF7FAFF),
+          color: Color(0xFFF7FAFF),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.hairline),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: AppColors.brand),
+            Icon(icon, size: 18, color: AppColors.liveBrand),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

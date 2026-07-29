@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { sendOrderConfirmation } from "@/lib/sms";
+import {
+  sendDeliveryConfirmation,
+  sendDuesReminder,
+  sendOrderConfirmation,
+} from "@/lib/sms";
 import { createClient } from "@/lib/supabase/server";
 import type { Booking } from "@/lib/types";
 
@@ -17,6 +21,16 @@ async function requireAdmin() {
 }
 
 export type ActionState = { ok?: string; error?: string };
+
+export async function markAdminNotificationsRead(): Promise<void> {
+  const supabase = await requireAdmin();
+  const { error } = await supabase
+    .from("admin_notifications")
+    .update({ read_at: new Date().toISOString() })
+    .is("read_at", null);
+  if (error) throw error;
+  revalidatePath("/");
+}
 
 export async function toggleOfferVisibility(
   enabled: boolean,
@@ -79,7 +93,195 @@ export async function confirmBooking(
   return { ok: "Booking confirmed." };
 }
 
+/** Complete a confirmed booking and send its approved DLT delivery SMS. */
+export async function markBookingDelivered(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing booking." };
+
+  let booking: Booking | null = null;
+  try {
+    const supabase = await requireAdmin();
+    const { data: existing, error: readError } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (readError) throw readError;
+    booking = (existing as Booking) ?? null;
+    if (!booking) return { error: "Booking not found." };
+    if (booking.status === "delivered") {
+      return { error: "This booking is already marked as delivered." };
+    }
+    if (booking.status !== "confirmed") {
+      return { error: "Only confirmed bookings can be marked delivered." };
+    }
+
+    const { data, error } = await supabase
+      .from("bookings")
+      .update({ status: "delivered" })
+      .eq("id", id)
+      .eq("status", "confirmed")
+      .select("*")
+      .maybeSingle();
+    if (error) throw error;
+    booking = (data as Booking) ?? null;
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error &&
+        error.message.includes("INSUFFICIENT_CAN_STOCK")
+          ? "Not enough cans are reserved. Add stock in Cans Management first."
+          : "Could not mark this booking as delivered.",
+    };
+  }
+
+  const sms = booking
+    ? await sendDeliveryConfirmation(booking)
+    : { sent: false, message: "Booking updated, but SMS was not sent." };
+  revalidatePath("/", "layout");
+  return sms.sent
+    ? { ok: "Marked delivered and delivery SMS sent." }
+    : {
+        ok: `Marked delivered. SMS not sent: ${sms.message}`,
+      };
+}
+
+export async function markBookingAllDone(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing booking." };
+  try {
+    const supabase = await requireAdmin();
+    const { data, error } = await supabase.rpc("mark_booking_all_done", {
+      p_booking_id: id,
+    });
+    if (error) {
+      const message = error.message.includes("PAYMENT_PENDING")
+        ? "Collect the pending balance first."
+        : error.message.includes("CANS_PENDING")
+          ? "Record all empty can returns first."
+          : error.message.includes("DELIVERY_NOT_COMPLETE")
+            ? "Mark this booking as delivered first."
+            : "Could not mark this booking All Done.";
+      return { error: message };
+    }
+    revalidatePath("/", "layout");
+    return (data as { already_done?: boolean })?.already_done
+      ? { ok: "This booking is already All Done." }
+      : { ok: "Booking marked All Done. Customer can place a new order." };
+  } catch {
+    return { error: "Could not mark this booking All Done." };
+  }
+}
+
+export async function sendDuesReminderAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing booking." };
+  try {
+    const supabase = await requireAdmin();
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("id", id)
+      .eq("status", "confirmed")
+      .gt("balance", 0)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return { error: "No pending balance found for this booking." };
+    const result = await sendDuesReminder(data as Booking);
+    revalidatePath("/pending-dues");
+    return result.sent
+      ? { ok: "Pending dues reminder sent." }
+      : result.skipped
+        ? { ok: result.message }
+        : { error: result.message };
+  } catch {
+    return { error: "Could not send the dues reminder." };
+  }
+}
+
+export async function sendBulkDuesReminders(
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  try {
+    const supabase = await requireAdmin();
+    const { data, error } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("status", "confirmed")
+      .gt("balance", 0);
+    if (error) throw error;
+    const bookings = (data ?? []) as Booking[];
+    if (bookings.length === 0) {
+      return { error: "There are no pending dues to remind." };
+    }
+    const results = await Promise.all(
+      bookings.map((booking) => sendDuesReminder(booking)),
+    );
+    const sent = results.filter((result) => result.sent).length;
+    const skipped = results.filter((result) => result.skipped).length;
+    const failed = results.length - sent - skipped;
+    revalidatePath("/pending-dues");
+    if (sent === 0 && failed > 0) {
+      return {
+        error: `No SMS sent. ${failed} failed${skipped ? ` and ${skipped} were skipped` : ""}.`,
+      };
+    }
+    return {
+      ok: `${sent} reminder${sent === 1 ? "" : "s"} sent${skipped ? `, ${skipped} skipped (already sent today)` : ""}${failed ? `, ${failed} failed` : ""}.`,
+    };
+  } catch {
+    return { error: "Could not send bulk dues reminders." };
+  }
+}
+
 /** Cancel a booking and free the date again. */
+export async function collectBookingBalance(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const bookingId = String(formData.get("booking_id") ?? "");
+  const method = String(formData.get("method") ?? "");
+  const reference = String(formData.get("reference") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+  if (!bookingId) return { error: "Missing booking." };
+  if (!["cash", "upi", "bank", "other"].includes(method)) {
+    return { error: "Choose a valid collection method." };
+  }
+  try {
+    const supabase = await requireAdmin();
+    const { data, error } = await supabase.rpc("collect_booking_balance", {
+      p_booking_id: bookingId,
+      p_method: method,
+      p_reference: reference,
+      p_note: note,
+    });
+    if (error) throw error;
+    const result = data as {
+      amount?: number;
+      already_collected?: boolean;
+    } | null;
+    revalidatePath("/", "layout");
+    revalidatePath("/pending-dues");
+    revalidatePath("/payments");
+    revalidatePath("/bookings");
+    return result?.already_collected
+      ? { ok: "This balance was already collected." }
+      : { ok: `Balance payment of ₹${result?.amount ?? 0} collected.` };
+  } catch {
+    return { error: "Could not collect this balance. Please try again." };
+  }
+}
+
 export async function cancelBooking(
   _prev: ActionState,
   formData: FormData,
@@ -172,6 +374,9 @@ export async function updateSettings(
     formData.get("sms_template_delivery") ?? "",
   ).trim();
   const smsTemplateDues = String(formData.get("sms_template_dues") ?? "").trim();
+  const smsTemplateCashAlert = String(
+    formData.get("sms_template_cash_alert") ?? "",
+  ).trim();
   const offerEnabled = formData.get("offer_enabled") === "on";
   const offerTitle = String(formData.get("offer_title") ?? "").trim();
   const offerDescription = String(
@@ -222,6 +427,7 @@ export async function updateSettings(
         sms_template_order: smsTemplateOrder,
         sms_template_delivery: smsTemplateDelivery,
         sms_template_dues: smsTemplateDues,
+        sms_template_cash_alert: smsTemplateCashAlert,
         offer_enabled: offerEnabled,
         offer_title: offerTitle,
         offer_description: offerDescription,

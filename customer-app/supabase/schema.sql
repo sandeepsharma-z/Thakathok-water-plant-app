@@ -30,6 +30,39 @@ create table if not exists public.settings (
   offer_code              text not null default 'SPLASH15',
   offer_discount_percent  int not null default 15,
   offer_min_subtotal      int not null default 300,
+  home_hero_banners       jsonb not null default '[
+    {"image_url":"assets/images/image 17.png","enabled":true,"action":"none"},
+    {"image_url":"assets/images/image 14.png","enabled":true,"action":"none"}
+  ]'::jsonb,
+  home_promo_banners      jsonb not null default '[
+    {"image_url":"assets/images/image 12.png","enabled":true,"action":"order"},
+    {"image_url":"assets/images/image 25.png","enabled":true,"action":"none"}
+  ]'::jsonb,
+  home_products           jsonb not null default '[
+    {"name":"Mini Event Pack","quantity_label":"20 Cans","cans":20,"image_url":"assets/images/Products/Mini Event Pack.png","description":"A compact water supply pack for small celebrations and gatherings.","ideal_for":"Small functions, family events and intimate celebrations","enabled":true},
+    {"name":"Standard Event Pack","quantity_label":"50 Cans","cans":50,"image_url":"assets/images/Products/Standard Event Pack.png","description":"A balanced event pack with enough drinking water for medium gatherings.","ideal_for":"Birthdays, community functions and medium-size events","enabled":true},
+    {"name":"Large Event Pack","quantity_label":"100 Cans","cans":100,"image_url":"assets/images/Products/Large Event Pack.png","description":"Reliable bulk water supply designed for busy full-day celebrations.","ideal_for":"Weddings, receptions and large public functions","enabled":true},
+    {"name":"Jumbo Event Pack","quantity_label":"150 Cans","cans":150,"image_url":"assets/images/Products/Jumbo Event Pack.png","description":"Our largest ready pack for high-attendance events and celebrations.","ideal_for":"Large weddings, festivals and major community events","enabled":true},
+    {"name":"Custom Event Pack","quantity_label":"Choose Quantity","cans":null,"image_url":"assets/images/Products/Custom Event Pack.png","description":"Choose the exact number of cans needed for your unique event.","ideal_for":"Any event requiring a personalised water quantity","enabled":true}
+  ]'::jsonb,
+  home_categories         jsonb not null default '[
+    {"name":"Wedding","image_url":"assets/images/Products/Jumbo Event Pack.png","event_type":"Wedding","custom_quantity":false,"enabled":true},
+    {"name":"Birthday","image_url":"assets/images/Products/Mini Event Pack.png","event_type":"Birthday","custom_quantity":false,"enabled":true},
+    {"name":"Large Events","image_url":"assets/images/Products/Large Event Pack.png","event_type":"Other","custom_quantity":false,"enabled":true},
+    {"name":"Custom Need","image_url":"assets/images/Products/Custom Event Pack.png","event_type":"Other","custom_quantity":true,"enabled":true}
+  ]'::jsonb,
+  support_content         jsonb not null default '{
+    "heading":"Need help with an order?",
+    "description":"Reach out to {plant_name} directly.",
+    "section_title":"Frequently asked",
+    "faqs":[
+      {"question":"How do I place a bulk order?","answer":"Tap Request Bulk Order on the home screen, fill in your event details, and pay the 30% advance to confirm."},
+      {"question":"Why do I pay 30% advance?","answer":"The 30% advance confirms your booking and blocks your event date. The remaining 70% is paid as cash on delivery."},
+      {"question":"Is the advance refundable?","answer":"No — the 30% advance is non-refundable."},
+      {"question":"When is a delivery charge added?","answer":"A delivery charge applies only to orders under 25 cans, except Kasara Balkunda."},
+      {"question":"How will I know my booking is confirmed?","answer":"Online payments confirm instantly. Cash bookings are confirmed once the advance is received."}
+    ]
+  }'::jsonb,
   updated_at              timestamptz not null default now(),
   constraint settings_single_row check (id = 1),
   constraint settings_offer_percent check (
@@ -51,6 +84,11 @@ alter table public.settings add column if not exists offer_description      text
 alter table public.settings add column if not exists offer_code             text not null default 'SPLASH15';
 alter table public.settings add column if not exists offer_discount_percent int not null default 15;
 alter table public.settings add column if not exists offer_min_subtotal     int not null default 300;
+alter table public.settings add column if not exists home_hero_banners jsonb not null default '[]'::jsonb;
+alter table public.settings add column if not exists home_promo_banners jsonb not null default '[]'::jsonb;
+alter table public.settings add column if not exists home_products jsonb not null default '[]'::jsonb;
+alter table public.settings add column if not exists home_categories jsonb not null default '[]'::jsonb;
+alter table public.settings add column if not exists support_content jsonb not null default '{}'::jsonb;
 
 -- Seed the single settings row (won't duplicate on re-run)
 insert into public.settings (id) values (1)
@@ -170,6 +208,109 @@ drop policy if exists customers_anon_read on public.customers;
 create policy customers_anon_read on public.customers
   for select to anon using (true);
 
+-- ── 6. Wallet ledger + Razorpay order binding ───────────────────────────────
+create table if not exists public.wallet_payment_orders (
+  razorpay_order_id text primary key,
+  mobile text not null references public.customers(mobile),
+  amount int not null check (amount between 10 and 100000),
+  status text not null default 'created'
+    check (status in ('created', 'credited', 'failed')),
+  created_at timestamptz not null default now(),
+  credited_at timestamptz
+);
+
+create table if not exists public.wallet_transactions (
+  id uuid primary key default gen_random_uuid(),
+  mobile text not null references public.customers(mobile),
+  type text not null check (type in ('credit', 'debit')),
+  amount int not null check (amount > 0),
+  balance_after int not null check (balance_after >= 0),
+  description text not null default '',
+  razorpay_order_id text unique,
+  razorpay_payment_id text unique,
+  created_at timestamptz not null default now()
+);
+create index if not exists wallet_transactions_mobile_idx
+  on public.wallet_transactions (mobile, created_at desc);
+
+alter table public.wallet_payment_orders enable row level security;
+alter table public.wallet_transactions enable row level security;
+drop policy if exists wallet_transactions_anon_read on public.wallet_transactions;
+create policy wallet_transactions_anon_read on public.wallet_transactions
+  for select to anon using (true);
+drop policy if exists wallet_transactions_admin_read on public.wallet_transactions;
+create policy wallet_transactions_admin_read on public.wallet_transactions
+  for select to authenticated using (true);
+
+create or replace function public.credit_verified_wallet_payment(
+  p_order_id text,
+  p_payment_id text
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  wallet_order public.wallet_payment_orders%rowtype;
+  new_balance int;
+begin
+  select * into wallet_order
+  from public.wallet_payment_orders
+  where razorpay_order_id = p_order_id
+  for update;
+
+  if wallet_order.razorpay_order_id is null then
+    raise exception 'ORDER_NOT_FOUND';
+  end if;
+  if wallet_order.status = 'credited' then
+    select wallet_balance into new_balance
+    from public.customers where mobile = wallet_order.mobile;
+    return jsonb_build_object(
+      'mobile', wallet_order.mobile,
+      'balance', new_balance,
+      'already_credited', true
+    );
+  end if;
+
+  update public.customers
+  set wallet_balance = wallet_balance + wallet_order.amount,
+      updated_at = now()
+  where mobile = wallet_order.mobile
+  returning wallet_balance into new_balance;
+
+  insert into public.wallet_transactions (
+    mobile, type, amount, balance_after, description,
+    razorpay_order_id, razorpay_payment_id
+  ) values (
+    wallet_order.mobile, 'credit', wallet_order.amount, new_balance,
+    'Wallet top-up via Razorpay', p_order_id, p_payment_id
+  );
+
+  update public.wallet_payment_orders
+  set status = 'credited', credited_at = now()
+  where razorpay_order_id = p_order_id;
+
+  return jsonb_build_object(
+    'mobile', wallet_order.mobile,
+    'balance', new_balance,
+    'already_credited', false
+  );
+exception
+  when unique_violation then
+    select wallet_balance into new_balance
+    from public.customers where mobile = wallet_order.mobile;
+    return jsonb_build_object(
+      'mobile', wallet_order.mobile,
+      'balance', new_balance,
+      'already_credited', true
+    );
+end;
+$$;
+revoke all on function public.credit_verified_wallet_payment(text, text)
+  from public, anon, authenticated;
+grant execute on function public.credit_verified_wallet_payment(text, text)
+  to service_role;
+
 -- ── 6. Customer avatar storage (MVP; tighten after phone OTP auth) ─────
 insert into storage.buckets (id, name, public)
 values ('customer-avatars', 'customer-avatars', true)
@@ -187,6 +328,21 @@ drop policy if exists customer_avatars_anon_update on storage.objects;
 create policy customer_avatars_anon_update on storage.objects
   for update to anon using (bucket_id = 'customer-avatars')
   with check (bucket_id = 'customer-avatars');
+
+insert into storage.buckets (id, name, public)
+values ('home-content', 'home-content', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists home_content_public_read on storage.objects;
+create policy home_content_public_read on storage.objects
+  for select using (bucket_id = 'home-content');
+drop policy if exists home_content_admin_insert on storage.objects;
+create policy home_content_admin_insert on storage.objects
+  for insert to authenticated with check (bucket_id = 'home-content');
+drop policy if exists home_content_admin_update on storage.objects;
+create policy home_content_admin_update on storage.objects
+  for update to authenticated using (bucket_id = 'home-content')
+  with check (bucket_id = 'home-content');
 
 -- ── 7. Mobile + password customer accounts (no OTP) ──────────
 create table if not exists public.customer_accounts (

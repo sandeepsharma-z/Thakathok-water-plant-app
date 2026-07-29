@@ -1,11 +1,8 @@
-import { ComingSoon } from "@/components/coming-soon";
-
-export default function ActivityLogsPage() {
-  return (
-    <ComingSoon
-      title="Activity Logs"
-      subtitle="A history of every admin action."
-      body="Soon you'll see a timeline of who confirmed, cancelled or edited each booking and setting — useful once you have staff helping you."
-    />
-  );
+import { Card, EmptyState, StatTile } from "@/components/ui";
+import { PageHead } from "@/components/management-ui";
+import { createClient } from "@/lib/supabase/server";
+export const dynamic="force-dynamic";
+export default async function ActivityLogsPage(){
+ const db=await createClient(); const {data}=await db.from("activity_logs").select("*").order("created_at",{ascending:false}).limit(200); const rows=data??[]; const today=new Date().toISOString().slice(0,10);
+ return <><PageHead title="Activity Logs" body="Automatic audit trail of booking, customer, settings and operations changes."/><div className="mt-5 grid gap-4 sm:grid-cols-2"><StatTile label="Recent activities" value={rows.length} icon="clipboard"/><StatTile label="Today" value={rows.filter(x=>x.created_at.startsWith(today)).length} icon="calendar" accent="aqua"/></div>{rows.length===0?<Card className="mt-5"><EmptyState icon="clipboard" title="No activity yet" body="Admin changes will be recorded automatically."/></Card>:<Card className="mt-5 overflow-hidden"><div className="divide-y divide-line">{rows.map(x=><div key={x.id} className="flex flex-wrap items-center gap-3 px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase ${x.action==="delete"?"bg-danger-bg text-danger":x.action==="insert"?"bg-ok-bg text-ok":"bg-tint text-brand"}`}>{x.action}</span><div className="min-w-0 flex-1"><p className="text-[13px] font-bold capitalize text-ink">{x.entity.replaceAll("_"," ")}</p><p className="truncate text-[11px] text-ink-muted">{x.entity_id||"System record"}</p></div><time className="text-[11px] text-ink-faint">{new Date(x.created_at).toLocaleString("en-IN")}</time></div>)}</div></Card>}</>;
 }

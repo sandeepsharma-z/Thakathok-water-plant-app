@@ -16,14 +16,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { RANGE_PRESETS, rangeLabel, type RangeKey } from "@/lib/date-range";
+import { markAdminNotificationsRead } from "@/app/actions";
 
-const rupee = (n: number) => `₹${n.toLocaleString("en-IN")}`;
-
-type PendingItem = {
-  code: string;
-  village: string;
-  cans: number;
-  advance: number;
+type NotificationItem = {
+  id: string;
+  title: string;
+  body: string;
+  link: string;
+  readAt: string | null;
   time: string;
 };
 
@@ -33,7 +33,7 @@ export function Topbar({
   subtitle,
   avatarUrl,
   notifications = 0,
-  pendingItems = [],
+  notificationItems = [],
   range = "7d",
 }: {
   title: string;
@@ -41,7 +41,7 @@ export function Topbar({
   subtitle?: string;
   avatarUrl?: string | null;
   notifications?: number;
-  pendingItems?: PendingItem[];
+  notificationItems?: NotificationItem[];
   range?: RangeKey;
 }) {
   const router = useRouter();
@@ -49,11 +49,13 @@ export function Topbar({
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [bellOpen, setBellOpen] = useState(false);
+  const [unread, setUnread] = useState(notifications);
   const [rangeOpen, setRangeOpen] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
   const rangeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
+  useEffect(() => setUnread(notifications), [notifications]);
   const isDark = mounted && resolvedTheme === "dark";
 
   // close dropdowns on outside click
@@ -74,6 +76,15 @@ export function Topbar({
     e.preventDefault();
     const q = query.trim();
     router.push(q ? `/bookings?q=${encodeURIComponent(q)}` : "/bookings");
+  }
+
+  function toggleNotifications() {
+    const opening = !bellOpen;
+    setBellOpen(opening);
+    if (opening && unread > 0) {
+      setUnread(0);
+      void markAdminNotificationsRead().catch(() => setUnread(notifications));
+    }
   }
 
   return (
@@ -164,14 +175,14 @@ export function Topbar({
           {/* notifications */}
           <div ref={bellRef} className="relative">
             <button
-              onClick={() => setBellOpen((o) => !o)}
+              onClick={toggleNotifications}
               className="relative grid h-11 w-11 place-items-center rounded-xl border border-line bg-surface text-ink-body shadow-soft"
               aria-label="Notifications"
             >
               <Bell className="h-[18px] w-[18px]" />
-              {notifications > 0 ? (
+              {unread > 0 ? (
                 <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#ef4b6c] px-1 text-[9px] font-bold text-white">
-                  {notifications > 9 ? "9+" : notifications}
+                  {unread > 9 ? "9+" : unread}
                 </span>
               ) : null}
             </button>
@@ -186,35 +197,37 @@ export function Topbar({
                 <div className="flex items-center justify-between border-b border-line px-4 py-3">
                   <p className="text-[13.5px] font-bold text-ink">Notifications</p>
                   <span className="rounded-full bg-warn-bg px-2 py-0.5 text-[10.5px] font-bold text-warn">
-                    {notifications} pending
+                    {unread} unread
                   </span>
                 </div>
-                {pendingItems.length === 0 ? (
+                {notificationItems.length === 0 ? (
                   <div className="px-4 py-8 text-center text-[12.5px] text-ink-faint">
                     You&apos;re all caught up 🎉
                   </div>
                 ) : (
                   <ul className="max-h-[300px] overflow-y-auto">
-                    {pendingItems.map((p) => (
-                      <li key={p.code}>
+                    {notificationItems.map((item) => (
+                      <li key={item.id}>
                         <Link
-                          href="/bookings?status=pending"
+                          href={item.link}
                           onClick={() => setBellOpen(false)}
-                          className="flex items-start gap-3 px-4 py-3 transition hover:bg-tint"
+                          className={`flex items-start gap-3 px-4 py-3 transition hover:bg-tint ${
+                            item.readAt ? "opacity-70" : "bg-warn-bg/30"
+                          }`}
                         >
                           <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-warn-bg text-warn">
                             <Check className="h-4 w-4" />
                           </span>
                           <div className="min-w-0 flex-1">
                             <p className="text-[12.5px] font-semibold text-ink">
-                              {p.code} needs confirmation
+                              {item.title}
                             </p>
                             <p className="text-[11px] text-ink-muted">
-                              {p.village} · {p.cans} cans · advance {rupee(p.advance)}
+                              {item.body}
                             </p>
                           </div>
                           <span className="shrink-0 text-[10.5px] text-ink-faint">
-                            {p.time}
+                            {item.time}
                           </span>
                         </Link>
                       </li>
@@ -226,7 +239,7 @@ export function Topbar({
                   onClick={() => setBellOpen(false)}
                   className="block border-t border-line py-2.5 text-center text-[12.5px] font-semibold text-brand hover:bg-tint"
                 >
-                  View all pending
+                  View all cash bookings
                 </Link>
               </motion.div>
             ) : null}

@@ -8,6 +8,7 @@ class AuthService {
   static final AuthService instance = AuthService._();
 
   static const _sessionMobileKey = 'customer_session_mobile';
+  static const _sessionTokenKey = 'customer_session_token';
 
   SupabaseClient get _db => Supabase.instance.client;
 
@@ -15,6 +16,12 @@ class AuthService {
     final preferences = await SharedPreferences.getInstance();
     final mobile = preferences.getString(_sessionMobileKey) ?? '';
     return mobile.length == 10 ? mobile : null;
+  }
+
+  Future<String?> currentToken() async {
+    final preferences = await SharedPreferences.getInstance();
+    final token = preferences.getString(_sessionTokenKey) ?? '';
+    return token.length >= 32 ? token : null;
   }
 
   Future<void> register({
@@ -50,6 +57,10 @@ class AuthService {
     if (mobile.length != 10) throw const FormatException('Invalid account');
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(_sessionMobileKey, mobile);
+    final token = '${data['session_token'] ?? ''}';
+    if (token.length >= 32) {
+      await preferences.setString(_sessionTokenKey, token);
+    }
     await ProfileStore.instance.save(CustomerProfile(
       name: '${data['name'] ?? fallbackName}',
       mobile: mobile,
@@ -62,5 +73,6 @@ class AuthService {
   Future<void> logout() async {
     final preferences = await SharedPreferences.getInstance();
     await preferences.remove(_sessionMobileKey);
+    await preferences.remove(_sessionTokenKey);
   }
 }

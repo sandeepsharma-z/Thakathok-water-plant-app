@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/app_config_service.dart';
 
 /// Immutable snapshot of a bulk-order enquiry, carried from the form
 /// through the payment and confirmation screens.
@@ -39,7 +40,8 @@ class OrderDetails {
 
   int get subtotal => cans * perCanRate;
   int get grandTotal => subtotal - discountAmount + deliveryCharge;
-  int get advance => (grandTotal * 0.30).round();
+  int get advance =>
+      (grandTotal * AppConfigService.instance.advancePercent / 100).round();
   int get balance => grandTotal - advance;
 
   bool get hasDiscount => discountAmount > 0 && offerCode != null;

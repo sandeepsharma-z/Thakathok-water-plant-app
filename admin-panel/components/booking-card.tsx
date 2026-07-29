@@ -4,7 +4,9 @@ import { motion } from "framer-motion";
 import {
   CalendarDays,
   Check,
+  CheckCheck,
   MapPin,
+  MessageCircle,
   Phone,
   Truck,
   Wallet,
@@ -13,7 +15,13 @@ import {
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { cancelBooking, confirmBooking, type ActionState } from "@/app/actions";
+import {
+  cancelBooking,
+  confirmBooking,
+  markBookingDelivered,
+  markBookingAllDone,
+  type ActionState,
+} from "@/app/actions";
 import { StatusPill } from "@/components/ui";
 import { formatDate, rupees, type Booking } from "@/lib/types";
 
@@ -23,14 +31,16 @@ function ActionButton({
   icon,
 }: {
   label: string;
-  tone: "ok" | "ghost";
+  tone: "ok" | "brand" | "ghost";
   icon: React.ReactNode;
 }) {
   const { pending } = useFormStatus();
   const cls =
     tone === "ok"
       ? "bg-gradient-to-r from-[#12855a] to-[#2fbd83] text-white shadow-[0_10px_20px_-10px_rgba(18,133,90,0.9)] hover:brightness-105"
-      : "border border-line text-ink-body hover:bg-danger-bg hover:text-danger hover:border-danger/30";
+      : tone === "brand"
+        ? "bg-gradient-to-r from-[#004fda] to-[#168cff] text-white shadow-[0_10px_20px_-10px_rgba(0,79,218,0.9)] hover:brightness-105"
+        : "border border-line text-ink-body hover:bg-danger-bg hover:text-danger hover:border-danger/30";
   return (
     <button
       type="submit"
@@ -58,10 +68,32 @@ export function BookingCard({
     cancelBooking,
     {},
   );
-  const error = confirmState.error ?? cancelState.error;
+  const [deliveryState, deliveryAction] = useActionState<
+    ActionState,
+    FormData
+  >(markBookingDelivered, {});
+  const [allDoneState, allDoneAction] = useActionState<
+    ActionState,
+    FormData
+  >(markBookingAllDone, {});
+  const error =
+    confirmState.error ??
+    cancelState.error ??
+    deliveryState.error ??
+    allDoneState.error;
+  const success =
+    confirmState.ok ??
+    cancelState.ok ??
+    deliveryState.ok ??
+    allDoneState.ok;
 
   const isPending = b.status === "pending";
+  const isConfirmed = b.status === "confirmed";
   const isCash = b.payment_method === "cash";
+  const whatsappNumber = b.mobile.replace(/\D/g, "").slice(-10);
+  const whatsappMessage = encodeURIComponent(
+    `Hello ${b.customer_name?.trim() || "Customer"}, we have received your cash booking ${b.booking_code} for ${b.cans} cans. Please confirm the advance payment of ${rupees(b.advance)}.`,
+  );
 
   return (
     <motion.article
@@ -121,9 +153,29 @@ export function BookingCard({
       <div className="mt-4 flex flex-wrap items-end justify-between gap-4 border-t border-line pt-4 pl-2">
         <div className="flex gap-6">
           <Figure label="Total" value={rupees(b.grand_total)} />
-          <Figure label="Advance 30%" value={rupees(b.advance)} accent />
-          <Figure label="Balance COD" value={rupees(b.balance)} />
+          <Figure
+            label={`Advance ${b.grand_total > 0 ? Math.round((b.advance / b.grand_total) * 100) : 0}%`}
+            value={rupees(b.advance)}
+            accent
+          />
+          <Figure
+            label={b.balance === 0 ? "Payment status" : "Balance COD"}
+            value={b.balance === 0 ? "Fully Paid" : rupees(b.balance)}
+            accent={b.balance === 0}
+          />
         </div>
+
+        {isCash ? (
+          <a
+            href={`https://wa.me/91${whatsappNumber}?text=${whatsappMessage}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-[#20a966]/30 bg-[#e7f8ef] px-4 text-[12.5px] font-bold text-[#12855a] transition hover:border-[#20a966]/60 hover:bg-[#d9f4e6]"
+          >
+            <MessageCircle className="h-4 w-4" />
+            WhatsApp Customer
+          </a>
+        ) : null}
 
         {isPending ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -145,6 +197,26 @@ export function BookingCard({
             </form>
           </div>
         ) : null}
+        {isConfirmed ? (
+          <form action={deliveryAction}>
+            <input type="hidden" name="id" value={b.id} />
+            <ActionButton
+              label="Mark as Delivered"
+              tone="brand"
+              icon={<Truck className="h-4 w-4" />}
+            />
+          </form>
+        ) : null}
+        {b.status === "delivered" && !b.all_done_at ? (
+          <form action={allDoneAction}>
+            <input type="hidden" name="id" value={b.id} />
+            <ActionButton
+              label="Mark All Done"
+              tone="ok"
+              icon={<CheckCheck className="h-4 w-4" />}
+            />
+          </form>
+        ) : null}
       </div>
 
       {b.delivery_charge > 0 ? (
@@ -159,10 +231,21 @@ export function BookingCard({
           {rupees(b.discount_amount)}
         </p>
       ) : null}
+      {b.all_done_at ? (
+        <p className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-xl bg-ok-bg px-3 py-1.5 text-[11.5px] font-extrabold text-ok">
+          <CheckCheck className="h-4 w-4" />
+          All Done · Payment and cans cleared
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="mt-3 pl-2 text-[12px] font-semibold text-danger">
           {error}
+        </p>
+      ) : null}
+      {success ? (
+        <p className="mt-3 pl-2 text-[12px] font-semibold text-ok">
+          {success}
         </p>
       ) : null}
     </motion.article>

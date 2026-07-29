@@ -1,5 +1,10 @@
 import { CalendarClock, MapPin, Phone } from "lucide-react";
 
+import {
+  BulkDuesReminderButton,
+  DuesReminderButton,
+} from "@/components/dues-sms-actions";
+import { BalanceCollectionForm } from "@/components/balance-collection-form";
 import { Card, EmptyState, StatTile } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, rupees, type Booking } from "@/lib/types";
@@ -12,7 +17,7 @@ export default async function PendingDuesPage() {
   const { data, error } = await supabase
     .from("bookings")
     .select("*")
-    .eq("status", "confirmed")
+    .in("status", ["confirmed", "delivered"])
     .order("event_date", { ascending: true });
   const dues = ((data ?? []) as Booking[]).filter((b) => b.balance > 0);
   const totalDue = dues.reduce((s, b) => s + b.balance, 0);
@@ -24,11 +29,12 @@ export default async function PendingDuesPage() {
           Pending Dues
         </h1>
         <p className="mt-1 text-[13px] text-ink-muted">
-          The 70% balance still to be collected on confirmed orders.
+          The remaining balance still to be collected on confirmed orders.
         </p>
       </header>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
+        <div className="grid flex-1 gap-4 sm:grid-cols-2 lg:max-w-3xl lg:grid-cols-2">
         <StatTile
           label="Total pending dues"
           value={totalDue}
@@ -44,6 +50,8 @@ export default async function PendingDuesPage() {
           accent="brand"
           index={1}
         />
+        </div>
+        {dues.length > 0 ? <BulkDuesReminderButton /> : null}
       </div>
 
       {error || dues.length === 0 ? (
@@ -78,13 +86,17 @@ export default async function PendingDuesPage() {
                     </span>
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="flex flex-wrap items-center justify-end gap-4 text-right">
+                  <div>
                   <p className="text-[11px] text-ink-faint">Balance due</p>
                   <p className="text-[18px] font-extrabold text-warn">
                     {rupees(b.balance)}
                   </p>
+                  </div>
+                  <DuesReminderButton bookingId={b.id} />
                 </div>
               </div>
+              <BalanceCollectionForm bookingId={b.id} amount={b.balance} />
             </Card>
           ))}
         </div>

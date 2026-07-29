@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/booking_service.dart';
 import '../services/profile_store.dart';
+import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/dotted_loader.dart';
 import 'bulk_order_form_screen.dart' show kVillages;
 
-/// Customer profile — saved on this device (no login needed). Starts empty
+/// Customer profile â€” saved on this device (no login needed). Starts empty
 /// for a new user; they fill it once and it persists across app restarts.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,10 +25,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _mobile = TextEditingController();
   final _address = TextEditingController();
   String _village = kVillages.first;
+  String _avatarUrl = '';
+  Uint8List? _avatarPreviewBytes;
   bool _editing = false;
   bool _loaded = false;
   bool _uploadingAvatar = false;
-  String _avatarUrl = '';
 
   @override
   void initState() {
@@ -45,7 +49,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _village = p.village;
       }
       _loaded = true;
-      // A brand-new user has nothing saved — drop them straight into editing.
+      // A brand-new user has nothing saved â€” drop them straight into editing.
       _editing = p.isEmpty;
     });
   }
@@ -77,7 +81,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       name: name,
       village: _village,
       address: address,
-      avatarUrl: _avatarUrl,
     );
     if (!mounted) return;
     setState(() => _editing = false);
@@ -86,126 +89,214 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _showPhotoOptions() async {
+    if (_uploadingAvatar) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Profile photo',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PhotoOption(
+                      icon: Icons.photo_library_outlined,
+                      label: 'Gallery',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _pickAvatar(ImageSource.gallery);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _PhotoOption(
+                      icon: Icons.photo_camera_outlined,
+                      label: 'Camera',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        _pickAvatar(ImageSource.camera);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              if (_avatarUrl.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    _removeAvatar();
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  label: const Text('Remove current photo'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _pickAvatar(ImageSource source) async {
     final mobile = _mobile.text.trim();
     if (mobile.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Save a valid mobile number first.')),
-      );
+      _showMessage('Save a valid 10-digit mobile number first.');
       return;
     }
-    final picked = await ImagePicker().pickImage(
+    final selected = await ImagePicker().pickImage(
       source: source,
       imageQuality: 78,
-      maxWidth: 1080,
-      maxHeight: 1080,
+      maxWidth: 1000,
+      maxHeight: 1000,
     );
-    if (picked == null || !mounted) return;
-    setState(() => _uploadingAvatar = true);
+    if (selected == null || !mounted) return;
+
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: selected.path,
+      compressFormat: ImageCompressFormat.jpg,
+      compressQuality: 82,
+      maxWidth: 1000,
+      maxHeight: 1000,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop profile photo',
+          toolbarColor: AppColors.liveBrand,
+          toolbarWidgetColor: Colors.white,
+          activeControlsWidgetColor: AppColors.liveBrand,
+          backgroundColor: Colors.black,
+          cropFrameColor: Colors.white,
+          cropGridColor: Colors.white54,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+          aspectRatioPresets: const [CropAspectRatioPreset.square],
+        ),
+        IOSUiSettings(
+          title: 'Crop profile photo',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          aspectRatioPresets: const [CropAspectRatioPreset.square],
+        ),
+      ],
+    );
+    if (cropped == null || !mounted) return;
+
+    final previousUrl = _avatarUrl;
+    final croppedBytes = await cropped.readAsBytes();
+    setState(() {
+      _avatarPreviewBytes = croppedBytes;
+      _uploadingAvatar = true;
+    });
     try {
-      final bytes = await picked.readAsBytes();
-      final extension =
-          picked.name.contains('.') ? picked.name.split('.').last : 'jpg';
-      final url = await BookingService.instance.uploadAvatar(
+      final uploadedUrl = await BookingService.instance.uploadAvatar(
         mobile: mobile,
-        bytes: bytes,
-        extension: extension,
+        bytes: croppedBytes,
+        extension: 'jpg',
       );
       await BookingService.instance.updateCustomerAvatar(
         mobile: mobile,
-        avatarUrl: url,
+        avatarUrl: uploadedUrl,
       );
-      final current = await ProfileStore.instance.load();
-      await ProfileStore.instance.save(CustomerProfile(
-        name: _name.text.trim(),
-        mobile: mobile,
-        village: _village,
-        address: _address.text.trim(),
-        avatarUrl: url,
-      ));
-      await BookingService.instance.upsertCustomer(
-        mobile: mobile,
-        name: current.name.isEmpty ? _name.text.trim() : current.name,
-        village: _village,
-        address: _address.text.trim(),
-        avatarUrl: url,
-      );
+      await _saveLocalAvatar(uploadedUrl);
       if (!mounted) return;
-      setState(() => _avatarUrl = url);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo updated.')),
-      );
+      setState(() {
+        _avatarUrl = uploadedUrl;
+        _uploadingAvatar = false;
+      });
+      _showMessage(previousUrl.isEmpty
+          ? 'Profile photo updated.'
+          : 'Profile photo replaced.');
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Could not upload photo. Current photo was kept.')),
-      );
+      setState(() {
+        _avatarUrl = previousUrl;
+        _avatarPreviewBytes = null;
+      });
+      _showMessage('Could not upload photo. Current photo was kept.');
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
     }
   }
 
   Future<void> _removeAvatar() async {
-    final p = await ProfileStore.instance.load();
-    await ProfileStore.instance.save(CustomerProfile(
-      name: p.name,
-      mobile: p.mobile,
-      village: p.village,
-      address: p.address,
-    ));
-    if (p.mobile.length == 10) {
+    final shouldRemove = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Remove profile photo?'),
+            content:
+                const Text('The default profile icon will be shown instead.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('CANCEL')),
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('REMOVE')),
+            ],
+          ),
+        ) ??
+        false;
+    if (!shouldRemove || !mounted) return;
+
+    final previousUrl = _avatarUrl;
+    setState(() => _uploadingAvatar = true);
+    try {
       await BookingService.instance.updateCustomerAvatar(
-        mobile: p.mobile,
+        mobile: _mobile.text.trim(),
         avatarUrl: '',
       );
-      await BookingService.instance.upsertCustomer(
-        mobile: p.mobile,
-        name: p.name,
-        village: p.village,
-        address: p.address,
-        avatarUrl: '',
-      );
+      await _saveLocalAvatar('');
+      if (!mounted) return;
+      setState(() {
+        _avatarUrl = '';
+        _avatarPreviewBytes = null;
+      });
+      _showMessage('Profile photo removed.');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _avatarUrl = previousUrl);
+      _showMessage('Could not remove photo. Please try again.');
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
     }
-    if (mounted) setState(() => _avatarUrl = '');
   }
 
-  void _showAvatarOptions() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      builder: (sheetContext) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library_outlined),
-              title: const Text('Choose from gallery'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _pickAvatar(ImageSource.gallery);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_camera_outlined),
-              title: const Text('Take a photo'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _pickAvatar(ImageSource.camera);
-              },
-            ),
-            if (_avatarUrl.isNotEmpty)
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Remove photo'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _removeAvatar();
-                },
-              ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _saveLocalAvatar(String avatarUrl) async {
+    await ProfileStore.instance.save(CustomerProfile(
+      name: _name.text.trim(),
+      mobile: _mobile.text.trim(),
+      village: _village,
+      address: _address.text.trim(),
+      avatarUrl: avatarUrl,
+    ));
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -217,12 +308,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.brand),
+          icon: Icon(Icons.arrow_back, color: AppColors.liveBrand),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: const Text('My Profile',
+        title: Text(AppConfigService.instance.label('screen_profile'),
             style: TextStyle(
-                color: AppColors.brand,
+                color: AppColors.liveBrand,
                 fontWeight: FontWeight.w700,
                 fontSize: 19)),
         actions: [
@@ -230,14 +321,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             TextButton.icon(
               onPressed: () => setState(() => _editing = true),
               icon: const Icon(Icons.edit_outlined, size: 17),
-              label: const Text('Edit'),
-              style: TextButton.styleFrom(foregroundColor: AppColors.brand),
+              label: Text('Edit'),
+              style: TextButton.styleFrom(foregroundColor: AppColors.liveBrand),
             ),
         ],
       ),
       body: !_loaded
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.brand))
+          ? Center(child: CircularProgressIndicator(color: AppColors.liveBrand))
           : Form(
               key: _formKey,
               child: ListView(
@@ -248,59 +338,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Column(
                       children: [
                         GestureDetector(
-                          onTap: _uploadingAvatar ? null : _showAvatarOptions,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                height: 88,
-                                width: 88,
-                                decoration: BoxDecoration(
-                                  color: AppColors.tint,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: AppColors.brand
-                                          .withValues(alpha: 0.25),
-                                      width: 2),
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: _uploadingAvatar
-                                    ? const Padding(
-                                        padding: EdgeInsets.all(28),
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: AppColors.brand),
-                                      )
-                                    : _avatarUrl.isEmpty
-                                        ? const Icon(Icons.person_rounded,
-                                            size: 48, color: AppColors.brand)
-                                        : Image.network(
-                                            _avatarUrl,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) =>
-                                                const Icon(Icons.person_rounded,
-                                                    size: 48,
-                                                    color: AppColors.brand),
-                                          ),
-                              ),
-                              Positioned(
-                                right: -2,
-                                bottom: -2,
-                                child: Container(
-                                  height: 28,
-                                  width: 28,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.brand,
+                          onTap: _showPhotoOptions,
+                          child: SizedBox(
+                            height: 98,
+                            width: 98,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  height: 88,
+                                  width: 88,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.tint,
                                     shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: AppColors.liveBrand
+                                            .withValues(alpha: 0.25),
+                                        width: 2),
                                   ),
-                                  child: const Icon(Icons.camera_alt_rounded,
-                                      size: 15, color: Colors.white),
+                                  child: ClipOval(
+                                    child: _avatarPreviewBytes != null
+                                        ? Image.memory(
+                                            _avatarPreviewBytes!,
+                                            fit: BoxFit.cover,
+                                            width: 88,
+                                            height: 88,
+                                          )
+                                        : _uploadingAvatar
+                                            ? const DottedLoader(size: 36)
+                                            : _avatarUrl.isEmpty
+                                                ? Icon(Icons.person_rounded,
+                                                    size: 48,
+                                                    color: AppColors.liveBrand)
+                                                : Image.network(
+                                                    _avatarUrl,
+                                                    key: ValueKey(_avatarUrl),
+                                                    fit: BoxFit.cover,
+                                                    width: 88,
+                                                    height: 88,
+                                                    errorBuilder:
+                                                        (_, __, ___) => Icon(
+                                                      Icons.person_rounded,
+                                                      size: 48,
+                                                      color:
+                                                          AppColors.liveBrand,
+                                                    ),
+                                                  ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                                Positioned(
+                                  right: 0,
+                                  bottom: 3,
+                                  child: Container(
+                                    height: 34,
+                                    width: 34,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.liveBrand,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: Colors.white, width: 3),
+                                    ),
+                                    child: const Icon(Icons.camera_alt_rounded,
+                                        size: 17, color: Colors.white),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        TextButton(
+                          onPressed:
+                              _uploadingAvatar ? null : _showPhotoOptions,
+                          child: Text(_avatarUrl.isEmpty
+                              ? 'Add photo'
+                              : 'Change photo'),
+                        ),
                         Text(
                             _name.text.trim().isEmpty
                                 ? 'Your Profile'
@@ -354,8 +466,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: _village,
                     isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: AppColors.brand),
+                    icon: Icon(Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.liveBrand),
                     decoration: _dec('Select your village'),
                     items: kVillages
                         .map((v) => DropdownMenuItem(value: v, child: Text(v)))
@@ -376,13 +488,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
 
                   if (_editing) ...[
-                    const SizedBox(height: 28),
+                    SizedBox(height: 28),
                     SizedBox(
                       height: 52,
                       child: ElevatedButton(
                         onPressed: _save,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brand,
+                          backgroundColor: AppColors.liveBrand,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -401,6 +513,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
     );
   }
+}
+
+class _PhotoOption extends StatelessWidget {
+  const _PhotoOption({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            color: Color(0xFFF3F7FF),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.hairline),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: AppColors.liveBrand, size: 28),
+              const SizedBox(height: 7),
+              Text(label,
+                  style: const TextStyle(
+                      color: AppColors.textDark, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      );
 }
 
 class _Label extends StatelessWidget {
@@ -434,6 +581,6 @@ InputDecoration _dec(String hint) => InputDecoration(
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.brand, width: 1.4),
+        borderSide: BorderSide(color: AppColors.liveBrand, width: 1.4),
       ),
     );

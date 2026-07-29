@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/app_config_service.dart';
 
 /// Central colour palette for the ThakaThok / Mahalakshmi Water Plant app.
 /// Blue water theme picked to match the approved home-screen styling.
@@ -22,6 +23,8 @@ class AppColors {
 
   // ── Figma design tokens ──────────────────────────────────────────
   static const Color brand = Color(0xFF004FDA); // #004FDA
+  static Color get liveBrand => AppConfigService.instance.primaryColor;
+  static Color get liveAccent => AppConfigService.instance.accentColor;
   static const Color heading = Color(0xFF004ED9); // #004ED9
   static const Color body = Color(0xFF484C52); // #484C52
   static const Color offerBg = Color(0xFFEBF4FD); // #EBF4FD
@@ -37,6 +40,11 @@ class AppColors {
     end: Alignment.bottomRight,
     colors: [primaryLight, primaryDark],
   );
+  static LinearGradient get liveBlueGradient => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [liveAccent, liveBrand],
+      );
 
   static const LinearGradient bannerGradient = LinearGradient(
     begin: Alignment.centerLeft,

@@ -1,0 +1,29 @@
+"use client";
+import {useActionState,useState} from "react";
+import {sendNotification,type NotifyState} from "@/app/(app)/sms/actions";
+import {buttonClass,inputClass} from "@/components/management-ui";
+
+type Customer={mobile:string;name:string;village:string;due:number;cashPending:boolean};
+const templates={
+  dues:{title:"Payment Due Reminder",body:"Your booking payment is still pending. Please complete the payment to avoid service interruption.",type:"payment_due",action:"bookings"},
+  cash:{title:"Cash Advance Pending",body:"Your booking is awaiting confirmation. Please pay the advance amount to confirm your event date.",type:"cash_pending",action:"bookings"},
+  delivery:{title:"Delivery Reminder",body:"Your water delivery is scheduled soon. Please keep the delivery location accessible.",type:"delivery",action:"bookings"},
+  offer:{title:"Special Offer",body:"A special water delivery offer is now available for you. Open the app to view details.",type:"offer",action:"offer"},
+};
+export function NotificationComposer({customers,villages}:{customers:Customer[];villages:string[]}){
+ const [state,action,pending]=useActionState<NotifyState,FormData>(sendNotification,{});
+ const [title,setTitle]=useState(""); const [body,setBody]=useState(""); const [type,setType]=useState("custom"); const [actionType,setActionType]=useState("none"); const [audience,setAudience]=useState("selected");
+ const useTemplate=(key:keyof typeof templates)=>{const t=templates[key];setTitle(t.title);setBody(t.body);setType(t.type);setActionType(t.action)};
+ return <div className="grid gap-5 xl:grid-cols-[1.3fr_.7fr]"><form action={action} className="rounded-3xl border border-line bg-surface p-5 shadow-soft">
+  <h2 className="text-[17px] font-extrabold text-ink">Compose notification</h2><p className="mt-1 text-[12px] text-ink-muted">Send an English in-app message to one customer or any size audience.</p>
+  <div className="mt-4 flex flex-wrap gap-2">{Object.keys(templates).map(k=><button type="button" key={k} onClick={()=>useTemplate(k as keyof typeof templates)} className="rounded-full border border-line px-3 py-1.5 text-[11px] font-bold text-brand hover:bg-tint">{templates[k as keyof typeof templates].title}</button>)}</div>
+  <div className="mt-5 grid gap-4 sm:grid-cols-2"><label className="text-[12px] font-bold text-ink">Type<select name="notification_type" value={type} onChange={e=>setType(e.target.value)} className={`mt-1 ${inputClass}`}>{["custom","payment_due","cash_pending","booking","delivery","offer","service"].map(x=><option key={x} value={x}>{x.replaceAll("_"," ")}</option>)}</select></label><label className="text-[12px] font-bold text-ink">Action<select name="action_type" value={actionType} onChange={e=>setActionType(e.target.value)} className={`mt-1 ${inputClass}`}><option value="none">No action</option><option value="bookings">View bookings</option><option value="wallet">Open wallet</option><option value="order">Place order</option><option value="support">Contact support</option><option value="offer">View offer</option></select></label></div>
+  <label className="mt-4 block text-[12px] font-bold text-ink">Title<input name="title" required maxLength={80} value={title} onChange={e=>setTitle(e.target.value)} className={`mt-1 ${inputClass}`} placeholder="Notification title"/></label>
+  <label className="mt-4 block text-[12px] font-bold text-ink">Message<textarea name="body" required maxLength={500} rows={4} value={body} onChange={e=>setBody(e.target.value)} className={`mt-1 ${inputClass}`} placeholder="Write the message in English"/></label>
+  <label className="mt-4 block text-[12px] font-bold text-ink">Audience<select name="audience" value={audience} onChange={e=>setAudience(e.target.value)} className={`mt-1 ${inputClass}`}><option value="selected">Selected customers</option><option value="all">All customers</option><option value="pending_dues">Customers with pending dues</option><option value="cash_pending">Cash advance pending</option><option value="village">Customers in a village</option></select></label>
+  {audience==="village"?<select name="village" className={`mt-3 ${inputClass}`} required><option value="">Select village</option>{villages.map(v=><option key={v}>{v}</option>)}</select>:null}
+  {audience==="selected"?<div className="mt-4 max-h-64 overflow-y-auto rounded-2xl border border-line"><label className="sticky top-0 flex items-center gap-2 bg-canvas px-4 py-3 text-[11px] font-bold text-ink-muted">Select one or multiple customers</label>{customers.map(c=><label key={c.mobile} className="flex items-center gap-3 border-t border-line px-4 py-3 text-[12px]"><input type="checkbox" name="mobiles" value={c.mobile}/><span className="flex-1"><b className="text-ink">{c.name||"Unnamed customer"}</b><br/><span className="text-ink-muted">+91 {c.mobile} · {c.village||"No village"}</span></span>{c.due>0?<span className="font-bold text-danger">₹{c.due} due</span>:null}</label>)}</div>:null}
+  {state.error?<p className="mt-3 text-[12px] font-bold text-danger">{state.error}</p>:null}{state.ok?<p className="mt-3 text-[12px] font-bold text-ok">{state.ok}</p>:null}
+  <button disabled={pending} className={`mt-5 ${buttonClass}`}>{pending?"Sending…":"Send notification"}</button>
+ </form><div><div className="sticky top-6 rounded-3xl border border-line bg-surface p-5 shadow-soft"><h3 className="text-[14px] font-extrabold text-ink">Customer preview</h3><div className="mt-4 rounded-2xl border border-line bg-canvas p-4"><p className="text-[13px] font-extrabold text-ink">{title||"Notification title"}</p><p className="mt-2 text-[12px] leading-5 text-ink-muted">{body||"Your message will appear here."}</p>{actionType!=="none"?<span className="mt-3 inline-block rounded-lg bg-brand px-3 py-2 text-[10px] font-bold text-white">{actionType.replaceAll("_"," ").toUpperCase()}</span>:null}</div></div></div></div>;
+}

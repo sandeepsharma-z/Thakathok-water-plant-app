@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../models/product_pack.dart';
+import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/content_image.dart';
 import 'product_pack_details_screen.dart';
 
 class AllProductPacksScreen extends StatelessWidget {
@@ -17,11 +19,11 @@ class AllProductPacksScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.brand),
+          icon: Icon(Icons.arrow_back_rounded, color: AppColors.liveBrand),
         ),
-        title: const Text(
-          'All Event Packs',
-          style: TextStyle(
+        title: Text(
+          AppConfigService.instance.label('screen_all_products'),
+          style: const TextStyle(
             color: AppColors.textDark,
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -125,7 +127,8 @@ class _PackGridCard extends StatelessWidget {
                   color: const Color(0xFFF0F7FF),
                   child: Hero(
                     tag: pack.image,
-                    child: Image.asset(pack.image, fit: BoxFit.contain),
+                    child:
+                        ContentImage(source: pack.image, fit: BoxFit.contain),
                   ),
                 ),
               ),
@@ -148,10 +151,10 @@ class _PackGridCard extends StatelessWidget {
                     const SizedBox(height: 7),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.water_drop_rounded,
                           size: 15,
-                          color: AppColors.brand,
+                          color: AppColors.liveBrand,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -159,17 +162,17 @@ class _PackGridCard extends StatelessWidget {
                             pack.quantityLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: AppColors.brand,
+                            style: TextStyle(
+                              color: AppColors.liveBrand,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
-                        const Icon(
+                        Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 12,
-                          color: AppColors.brand,
+                          color: AppColors.liveBrand,
                         ),
                       ],
                     ),

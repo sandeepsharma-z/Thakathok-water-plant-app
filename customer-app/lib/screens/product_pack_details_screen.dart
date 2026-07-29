@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../models/product_pack.dart';
 import '../services/plant_config.dart';
+import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/content_image.dart';
 import 'bulk_order_form_screen.dart';
 
 class ProductPackDetailsScreen extends StatelessWidget {
@@ -14,7 +16,9 @@ class ProductPackDetailsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final rate = PlantConfig.instance.perCanRate;
     final total = pack.cans == null ? null : pack.cans! * rate;
-    final advance = total == null ? null : (total * 0.30).round();
+    final advance = total == null
+        ? null
+        : (total * AppConfigService.instance.advancePercent / 100).round();
     final freeVillage = PlantConfig.instance.freeDeliveryVillage;
     final threshold = PlantConfig.instance.deliveryFreeThreshold;
     final deliveryCharge = PlantConfig.instance.deliveryCharge;
@@ -27,12 +31,12 @@ class ProductPackDetailsScreen extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.brand),
+          icon: Icon(Icons.arrow_back_rounded, color: AppColors.liveBrand),
         ),
-        title: const Text(
-          'Pack Details',
+        title: Text(
+          AppConfigService.instance.label('screen_product_details'),
           style: TextStyle(
-            color: AppColors.brand,
+            color: AppColors.liveBrand,
             fontSize: 19,
             fontWeight: FontWeight.w800,
           ),
@@ -53,7 +57,10 @@ class ProductPackDetailsScreen extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(18),
-                child: Image.asset(pack.image, fit: BoxFit.contain),
+                child: ContentImage(
+                  source: pack.image,
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),
@@ -99,7 +106,7 @@ class ProductPackDetailsScreen extends StatelessWidget {
           _DetailCard(
             icon: Icons.currency_rupee_rounded,
             title: 'Current rate',
-            body: '₹$rate per can · controlled by Mahalakshmi Water Plant',
+            body: 'â‚¹$rate per can Â· controlled by Mahalakshmi Water Plant',
           ),
           const SizedBox(height: 12),
           _DetailCard(
@@ -114,40 +121,40 @@ class ProductPackDetailsScreen extends StatelessWidget {
             highlighted: true,
           ),
           const SizedBox(height: 12),
-          const _DetailCard(
+          _DetailCard(
             icon: Icons.location_on_outlined,
             title: 'Available delivery areas',
-            body: 'Kasara Balkunda, Sardarwadi, Tambala, Chilwantwadi, '
-                'Pirupatelvadi, Devi Hallali and Mamdapur.',
+            body: PlantConfig.instance.villages.join(', '),
           ),
           if (total != null) ...[
             const SizedBox(height: 20),
             Container(
-              padding: const EdgeInsets.all(17),
+              padding: EdgeInsets.all(17),
               decoration: BoxDecoration(
                 color: AppColors.offerBg,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: AppColors.brand.withValues(alpha: 0.14),
+                  color: AppColors.liveBrand.withValues(alpha: 0.14),
                 ),
               ),
               child: Column(
                 children: [
                   _PriceRow(
-                    label: '${pack.cans} cans × ₹$rate',
-                    value: '₹$total',
+                    label: '${pack.cans} cans Ã— â‚¹$rate',
+                    value: 'â‚¹$total',
                     bold: true,
                   ),
                   const Divider(height: 24),
                   _PriceRow(
-                    label: '30% advance',
-                    value: '₹$advance',
+                    label:
+                        '${AppConfigService.instance.advancePercent}% advance',
+                    value: 'â‚¹$advance',
                     highlight: true,
                   ),
                   const SizedBox(height: 8),
                   _PriceRow(
                     label: 'Balance on delivery',
-                    value: '₹${total - advance!}',
+                    value: 'â‚¹${total - advance!}',
                   ),
                 ],
               ),
@@ -181,7 +188,7 @@ class ProductPackDetailsScreen extends StatelessWidget {
                 ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.brand,
+                backgroundColor: AppColors.liveBrand,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -210,17 +217,20 @@ String _deliveryMessage({
   required int threshold,
   required int deliveryCharge,
 }) {
+  final villageCount = PlantConfig.instance.villages.length;
+  final otherVillages = villageCount > 0 ? villageCount - 1 : 0;
   if (pack.isCustom) {
-    return '$freeVillage always has free delivery. In the other 6 villages, '
-        'orders below $threshold cans include a ₹$deliveryCharge delivery '
-        'charge; orders of $threshold cans or more are delivered free.';
+    return '$freeVillage always has free delivery. In the other $otherVillages villages, '
+        'orders below $threshold cans include the delivery charge configured '
+        'for the selected village (â‚¹$deliveryCharge global fallback); '
+        'orders of $threshold cans or more are delivered free.';
   }
   if (pack.cans! >= threshold) {
-    return 'FREE delivery in all 7 villages because this pack contains '
+    return 'FREE delivery in all $villageCount villages because this pack contains '
         '${pack.cans} cans (minimum free-delivery quantity: $threshold cans).';
   }
-  return 'FREE delivery in $freeVillage. For the other 6 villages, a '
-      '₹$deliveryCharge delivery charge applies because this pack contains '
+  return 'FREE delivery in $freeVillage. For the other $otherVillages villages, '
+      'the configured village delivery charge applies (â‚¹$deliveryCharge global fallback) because this pack contains '
       '${pack.cans} cans, which is below the $threshold-can free-delivery limit.';
 }
 
@@ -231,7 +241,7 @@ class _Pill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: AppColors.tint,
           borderRadius: BorderRadius.circular(20),
@@ -239,12 +249,12 @@ class _Pill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 15, color: AppColors.brand),
-            const SizedBox(width: 5),
+            Icon(icon, size: 15, color: AppColors.liveBrand),
+            SizedBox(width: 5),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.brand,
+              style: TextStyle(
+                color: AppColors.liveBrand,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -270,11 +280,11 @@ class _DetailCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: highlighted ? AppColors.offerBg : const Color(0xFFF8FAFD),
+          color: highlighted ? AppColors.offerBg : Color(0xFFF8FAFD),
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
             color: highlighted
-                ? AppColors.brand.withValues(alpha: 0.2)
+                ? AppColors.liveBrand.withValues(alpha: 0.2)
                 : AppColors.hairline,
           ),
         ),
@@ -288,7 +298,7 @@ class _DetailCard extends StatelessWidget {
                 color: AppColors.tint,
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: Icon(icon, color: AppColors.brand, size: 20),
+              child: Icon(icon, color: AppColors.liveBrand, size: 20),
             ),
             const SizedBox(width: 11),
             Expanded(
@@ -339,7 +349,7 @@ class _PriceRow extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: highlight ? AppColors.brand : AppColors.body,
+              color: highlight ? AppColors.liveBrand : AppColors.body,
               fontSize: 12.5,
               fontWeight: bold || highlight ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -347,7 +357,7 @@ class _PriceRow extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: highlight ? AppColors.brand : AppColors.textDark,
+              color: highlight ? AppColors.liveBrand : AppColors.textDark,
               fontSize: highlight ? 18 : 14,
               fontWeight: FontWeight.w800,
             ),

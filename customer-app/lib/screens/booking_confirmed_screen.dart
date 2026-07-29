@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../models/order_details.dart';
 import '../theme/app_colors.dart';
+import '../services/app_config_service.dart';
 import 'home_screen.dart';
 
-const String _kPlantName = 'Mahalakshmi Water Plant';
-
-/// Screen 4 — shown after the advance is paid (online) or the customer has
+/// Screen 4 â€” shown after the advance is paid (online) or the customer has
 /// committed to paying cash. Online = confirmed now; cash = pending until the
 /// plant confirms the received cash.
 class BookingConfirmedScreen extends StatelessWidget {
@@ -18,13 +17,14 @@ class BookingConfirmedScreen extends StatelessWidget {
 
   final OrderDetails order;
 
-  /// true → paid online (confirmed immediately); false → cash (pending).
+  /// true â†’ paid online (confirmed immediately); false â†’ cash (pending).
   final bool paidOnline;
 
   @override
   Widget build(BuildContext context) {
+    final config = AppConfigService.instance;
     final confirmed = paidOnline;
-    final accent = confirmed ? const Color(0xFF1B9C5A) : AppColors.brand;
+    final accent = confirmed ? Color(0xFF1B9C5A) : AppColors.liveBrand;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -51,7 +51,9 @@ class BookingConfirmedScreen extends StatelessWidget {
               ),
               const SizedBox(height: 22),
               Text(
-                confirmed ? 'Booking Confirmed!' : 'Booking Pending',
+                confirmed
+                    ? config.label('booking_confirmed_title')
+                    : config.label('booking_pending_title'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -61,8 +63,8 @@ class BookingConfirmedScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 confirmed
-                    ? 'Your advance is received and the date is blocked.'
-                    : 'Pay the cash advance to confirm. Date is not blocked yet.',
+                    ? config.paymentText('confirmed_message')
+                    : config.paymentText('pending_message'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 13, color: AppColors.body),
               ),
@@ -71,12 +73,12 @@ class BookingConfirmedScreen extends StatelessWidget {
               // Booking details card
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(18),
+                padding: EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: AppColors.offerBg,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                      color: AppColors.brand.withValues(alpha: 0.15)),
+                      color: AppColors.liveBrand.withValues(alpha: 0.15)),
                 ),
                 child: Column(
                   children: [
@@ -93,13 +95,13 @@ class BookingConfirmedScreen extends StatelessWidget {
                     if (order.hasDiscount) ...[
                       const SizedBox(height: 10),
                       _kv('Offer ${order.offerCode}',
-                          '-â‚¹${order.discountAmount}'),
+                          '-Ã¢â€šÂ¹${order.discountAmount}'),
                     ],
                     const Divider(height: 24),
                     _kv(confirmed ? 'Advance Paid' : 'Advance Due',
-                        '₹${order.advance}'),
+                        'â‚¹${order.advance}'),
                     const SizedBox(height: 10),
-                    _kv('Balance (COD)', '₹${order.balance}'),
+                    _kv('Balance (COD)', 'â‚¹${order.balance}'),
                   ],
                 ),
               ),
@@ -130,8 +132,8 @@ class BookingConfirmedScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         confirmed
-                            ? '$_kPlantName staff will call you in 5 mins.'
-                            : 'We received your request. $_kPlantName will '
+                            ? '${config.plantDisplayName} staff will call you in 5 mins.'
+                            : 'We received your request. ${config.plantDisplayName} will '
                                 'confirm once the cash advance is paid.',
                         style: TextStyle(
                           fontSize: 11.5,
@@ -145,9 +147,9 @@ class BookingConfirmedScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Note: Advance paid is non-refundable as per policy.',
-                style: TextStyle(fontSize: 10.5, color: AppColors.hint),
+              Text(
+                config.paymentText('non_refundable_note'),
+                style: const TextStyle(fontSize: 10.5, color: AppColors.hint),
               ),
 
               const Spacer(),
@@ -156,20 +158,20 @@ class BookingConfirmedScreen extends StatelessWidget {
                 height: 52,
                 child: ElevatedButton(
                   onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                    MaterialPageRoute(builder: (_) => HomeScreen()),
                     (route) => false,
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brand,
+                    backgroundColor: AppColors.liveBrand,
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('BACK TO HOME',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                  child: Text(config.label('back_home_button'),
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -184,14 +186,14 @@ class BookingConfirmedScreen extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(k,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 12.5,
                 color: AppColors.body,
                 fontWeight: FontWeight.w500)),
         Text(v,
             style: TextStyle(
                 fontSize: big ? 18 : 13.5,
-                color: big ? AppColors.brand : AppColors.textDark,
+                color: big ? AppColors.liveBrand : AppColors.textDark,
                 fontWeight: FontWeight.w800)),
       ],
     );

@@ -91,8 +91,8 @@ export default async function DashboardPage({
         title="Dashboard"
         name={profile.name}
         avatarUrl={profile.avatarUrl}
-        notifications={d.counts.pending}
-        pendingItems={d.pendingList}
+        notifications={d.adminNotifications.unread}
+        notificationItems={d.adminNotifications.items}
         range={activeRange}
       />
 

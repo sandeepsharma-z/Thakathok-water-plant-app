@@ -3,12 +3,17 @@
 import {
   Activity,
   Bell,
+  CalendarDays,
+  BookOpenCheck,
+  Palette,
+  Languages,
   ChevronRight,
   Droplet,
   FileBarChart,
   GitBranch,
   HeadphonesIcon,
   LayoutDashboard,
+  PanelsTopLeft,
   LifeBuoy,
   MapPin,
   MoreVertical,
@@ -17,13 +22,16 @@ import {
   ShoppingCart,
   Truck,
   Users,
+  UserRoundCog,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
+import { markNavSectionSeen } from "@/app/(app)/nav-actions";
 import { signOut } from "@/app/login/actions";
 
 type Item = {
@@ -32,22 +40,41 @@ type Item = {
   Icon: LucideIcon;
   chevron?: boolean;
   soon?: boolean;
+  seenSection?: "orders" | "customers";
 };
 
 const ITEMS: Item[] = [
   { label: "Dashboard", href: "/", Icon: LayoutDashboard, chevron: true },
-  { label: "Orders", href: "/bookings", Icon: ShoppingCart },
-  { label: "Customers", href: "/customers", Icon: Users },
+  { label: "Home Screen", href: "/home-content", Icon: PanelsTopLeft },
+  { label: "Booking Configuration", href: "/booking-config", Icon: BookOpenCheck },
+  { label: "App Branding", href: "/app-branding", Icon: Palette },
+  { label: "App Labels", href: "/app-labels", Icon: Languages },
+  { label: "Products", href: "/products", Icon: Package },
+  {
+    label: "Orders",
+    href: "/bookings",
+    Icon: ShoppingCart,
+    seenSection: "orders",
+  },
+  {
+    label: "Customers",
+    href: "/customers",
+    Icon: Users,
+    seenSection: "customers",
+  },
   { label: "Delivery Management", href: "/delivery", Icon: Truck },
-  { label: "Cans Management", href: "/cans", Icon: Package, soon: true },
+  { label: "Delivery Staff", href: "/delivery-staff", Icon: UserRoundCog },
+  { label: "Blocked Dates", href: "/calendar", Icon: CalendarDays },
+  { label: "Village Management", href: "/villages", Icon: MapPin },
+  { label: "Cans Management", href: "/cans", Icon: Package },
   { label: "Pending Dues", href: "/pending-dues", Icon: Droplet },
   { label: "Payments & Collections", href: "/payments", Icon: Wallet },
-  { label: "Expenses", href: "/expenses", Icon: FileBarChart, soon: true },
-  { label: "Reports & Analytics", href: "/reports", Icon: Activity, soon: true },
-  { label: "Branch Management", href: "/branches", Icon: GitBranch, soon: true },
-  { label: "SMS & Notifications", href: "/sms", Icon: Bell },
+  { label: "Expenses", href: "/expenses", Icon: FileBarChart },
+  { label: "Reports & Analytics", href: "/reports", Icon: Activity },
+  { label: "Branch Management", href: "/branches", Icon: GitBranch },
+  { label: "Notification Center", href: "/sms", Icon: Bell },
   { label: "Settings", href: "/settings", Icon: Settings },
-  { label: "Activity Logs", href: "/activity", Icon: LifeBuoy, soon: true },
+  { label: "Activity Logs", href: "/activity", Icon: LifeBuoy },
   { label: "Support", href: "/support", Icon: HeadphonesIcon },
 ];
 
@@ -55,12 +82,15 @@ export function Sidebar({
   name,
   avatarUrl,
   villages = 0,
+  counts = {},
 }: {
   name: string;
   avatarUrl?: string | null;
   villages?: number;
+  counts?: Record<string, number>;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -85,6 +115,7 @@ export function Sidebar({
       <nav className="flex-1 overflow-y-auto px-3 pb-2">
         {ITEMS.map((it) => {
           const active = isActive(it.href);
+          const count = counts[it.href] ?? 0;
           const cls = `mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition ${
             active
               ? "bg-[linear-gradient(90deg,#4b8ef8,#5f9dff)] text-white shadow-[0_10px_20px_-10px_rgba(0,0,0,0.5)]"
@@ -94,7 +125,18 @@ export function Sidebar({
             <>
               <it.Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.4 : 2} />
               <span className="flex-1">{it.label}</span>
-              {it.soon ? (
+              {count > 0 ? (
+                <span
+                  className={`grid min-w-6 place-items-center rounded-full px-1.5 py-0.5 text-[9.5px] font-extrabold tabular-nums ${
+                    active
+                      ? "bg-white text-brand shadow-sm"
+                      : "bg-white/18 text-white ring-1 ring-white/15"
+                  }`}
+                  title={`${count} ${it.label.toLowerCase()}`}
+                >
+                  {count > 99 ? "99+" : count}
+                </span>
+              ) : it.soon ? (
                 <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[8.5px] font-bold tracking-wide text-white/80">
                   SOON
                 </span>
@@ -104,7 +146,21 @@ export function Sidebar({
             </>
           );
           return (
-            <Link key={it.label} href={it.href} className={cls}>
+            <Link
+              key={it.label}
+              href={it.href}
+              className={cls}
+              onClick={
+                it.seenSection
+                  ? async (event) => {
+                      event.preventDefault();
+                      await markNavSectionSeen(it.seenSection!);
+                      router.push(it.href);
+                      router.refresh();
+                    }
+                  : undefined
+              }
+            >
               {inner}
             </Link>
           );

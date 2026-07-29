@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../services/auth_service.dart';
 import '../services/booking_service.dart';
+import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/dotted_loader.dart';
 
-/// Lets a customer look up their bookings by mobile number. Once phone-OTP
-/// auth lands this can drop the input and use the signed-in number directly.
+/// Shows bookings belonging to the currently signed-in customer account.
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key, this.initialMobile = ''});
 
@@ -16,8 +17,7 @@ class MyBookingsScreen extends StatefulWidget {
 }
 
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
-  late final TextEditingController _mobile =
-      TextEditingController(text: widget.initialMobile);
+  String _accountMobile = '';
   bool _loading = false;
   bool _searched = false;
   String? _error;
@@ -26,24 +26,24 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.initialMobile.trim().length == 10) {
-      _lookup();
-    }
-  }
-
-  @override
-  void dispose() {
-    _mobile.dispose();
-    super.dispose();
+    _lookup();
   }
 
   Future<void> _lookup() async {
-    final m = _mobile.text.trim();
+    final signedInMobile = await AuthService.instance.currentMobile();
+    final m = signedInMobile ?? widget.initialMobile.trim();
+    if (!mounted) return;
     if (m.length != 10) {
-      setState(() => _error = 'Enter a valid 10-digit mobile number');
+      if (mounted) {
+        setState(() {
+          _searched = true;
+          _error = 'Please sign in again to view your bookings.';
+        });
+      }
       return;
     }
     setState(() {
+      _accountMobile = m;
       _loading = true;
       _error = null;
     });
@@ -69,111 +69,53 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.brand),
+          icon: Icon(Icons.arrow_back, color: AppColors.liveBrand),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: const Text('My Bookings',
+        title: Text(AppConfigService.instance.label('screen_my_bookings'),
             style: TextStyle(
-                color: AppColors.brand,
+                color: AppColors.liveBrand,
                 fontWeight: FontWeight.w700,
                 fontSize: 19)),
       ),
-      body: Column(
-        children: [
-          // mobile lookup
+      body: Column(children: [
+        if (_accountMobile.isNotEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _mobile,
-                    keyboardType: TextInputType.phone,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(10),
-                    ],
-                    onSubmitted: (_) => _lookup(),
-                    decoration: InputDecoration(
-                      hintText: 'Your mobile number',
-                      hintStyle: const TextStyle(
-                          color: AppColors.hint, fontSize: 13.5),
-                      prefixText: '+91  ',
-                      prefixStyle: const TextStyle(
-                          color: AppColors.textDark,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14),
-                      filled: true,
-                      fillColor: const Color(0xFFF7FAFF),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 14),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppColors.hairline),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: AppColors.brand, width: 1.4),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _loading ? null : _lookup,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brand,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: _loading
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2.2, color: Colors.white))
-                        : const Icon(Icons.search, size: 22),
-                  ),
-                ),
-              ],
+            child: Row(children: [
+              Icon(Icons.verified_user_outlined,
+                  size: 17, color: AppColors.liveBrand),
+              const SizedBox(width: 7),
+              const Text('Your account booking history',
+                  style: TextStyle(fontSize: 12, color: AppColors.body)),
+            ]),
+          ),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(_error!,
+                  style: const TextStyle(
+                      color: Color(0xFFE23D3D),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
             ),
           ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(_error!,
-                    style: const TextStyle(
-                        color: Color(0xFFE23D3D),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-              ),
-            ),
-          Expanded(child: _body()),
-        ],
-      ),
+        Expanded(
+            child: _loading ? const Center(child: DottedLoader()) : _body()),
+      ]),
     );
   }
 
   Widget _body() {
-    if (!_searched) {
-      return _hint(
-        icon: Icons.receipt_long_outlined,
-        title: 'See your bookings',
-        body: 'Enter the mobile number you booked with to view your orders.',
-      );
-    }
+    if (!_searched) return const SizedBox.shrink();
     if (_bookings.isEmpty) {
       return _hint(
         icon: Icons.inbox_outlined,
         title: 'No bookings found',
-        body: 'No bookings for +91 ${_mobile.text}. Place a bulk order to get '
+        body:
+            'No bookings are linked to this account yet. Place a bulk order to get '
             'started.',
       );
     }
@@ -203,7 +145,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                 color: AppColors.tint,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Icon(icon, size: 32, color: AppColors.brand),
+              child: Icon(icon, size: 32, color: AppColors.liveBrand),
             ),
             const SizedBox(height: 14),
             Text(title,
@@ -243,27 +185,27 @@ class _BookingTile extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('${b['booking_code']}',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.brand)),
+                      color: AppColors.liveBrand)),
               _StatusPill(status),
             ],
           ),
           const SizedBox(height: 8),
-          _kv('Event', '${b['event_type']} · ${b['cans']} cans'),
+          _kv('Event', '${b['event_type']} Â· ${b['cans']} cans'),
           _kv('Date', '${b['event_date']}  ${b['event_time']}'),
           _kv('Village', '${b['village']}'),
           if (((b['discount_amount'] as num?)?.toInt() ?? 0) > 0)
             _kv('Offer',
-                '${b['offer_code']}  -â‚¹${(b['discount_amount'] as num).toInt()}'),
+                '${b['offer_code']}  -Ã¢â€šÂ¹${(b['discount_amount'] as num).toInt()}'),
           const Divider(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _amt('Total', '₹${b['grand_total']}'),
-              _amt('Advance', '₹${b['advance']}', accent: true),
-              _amt('Balance', '₹${b['balance']}'),
+              _amt('Total', 'â‚¹${b['grand_total']}'),
+              _amt('Advance', 'â‚¹${b['advance']}', accent: true),
+              _amt('Balance', 'â‚¹${b['balance']}'),
             ],
           ),
         ],
@@ -293,13 +235,12 @@ class _BookingTile extends StatelessWidget {
   Widget _amt(String k, String v, {bool accent = false}) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(k,
-              style: const TextStyle(fontSize: 10.5, color: AppColors.hint)),
+          Text(k, style: TextStyle(fontSize: 10.5, color: AppColors.hint)),
           Text(v,
               style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: accent ? AppColors.brand : AppColors.textDark)),
+                  color: accent ? AppColors.liveBrand : AppColors.textDark)),
         ],
       );
 }
@@ -318,11 +259,11 @@ class _StatusPill extends StatelessWidget {
         break;
       case 'cancelled':
         bg = const Color(0xFFFDECEC);
-        fg = const Color(0xFFD32020);
+        fg = Color(0xFFD32020);
         break;
       case 'delivered':
         bg = AppColors.offerBg;
-        fg = AppColors.brand;
+        fg = AppColors.liveBrand;
         break;
       default:
         bg = const Color(0xFFFFF4E5);

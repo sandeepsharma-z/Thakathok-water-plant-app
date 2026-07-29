@@ -13,6 +13,19 @@ class PlantConfig {
   String freeDeliveryVillage = 'Kasara Balkunda';
   String plantName = 'Mahalakshmi Water Plant';
   String plantPhone = '8080739807';
+  List<String> villages = const [
+    'Kasara Balkunda',
+    'Sardarwadi',
+    'Tambala',
+    'Chilwantwadi',
+    'Pirupatelvadi',
+    'Devi Hallali',
+    'Mamdapur',
+  ];
+  Map<String, int?> villageDeliveryCharges = const {};
+
+  int deliveryChargeForVillage(String village) =>
+      villageDeliveryCharges[village] ?? deliveryCharge;
 
   /// Razorpay publishable Key ID. Empty until the owner adds it in the panel —
   /// the payment screen falls back to cash-only when this is empty.
@@ -28,7 +41,18 @@ class PlantConfig {
 
   /// Pull the latest settings row. Safe to call more than once.
   Future<void> load() async {
-    final s = await BookingService.instance.fetchSettings();
+    final results = await Future.wait([
+      BookingService.instance.fetchSettings(),
+      BookingService.instance.fetchVillages(),
+      BookingService.instance.fetchVillageDeliveryCharges(),
+    ]);
+    final s = results[0] as AppSettings?;
+    final liveVillages = results[1] as List<String>;
+    final liveVillageCharges = results[2] as Map<String, int?>;
+    if (liveVillages.isNotEmpty) villages = liveVillages;
+    if (liveVillageCharges.isNotEmpty) {
+      villageDeliveryCharges = liveVillageCharges;
+    }
     if (s == null) return;
     perCanRate = s.perCanRate;
     deliveryCharge = s.deliveryCharge;

@@ -152,6 +152,19 @@ export function TopVillages({
 }
 
 /* ── Cans summary ─────────────────────────────────────────────────── */
+function compactIndianNumber(value: number) {
+  const format = (amount: number, suffix: string) =>
+    `${Number(amount.toFixed(amount >= 10 ? 1 : 2))}${suffix}`;
+
+  if (Math.abs(value) >= 1_00_00_000) {
+    return format(value / 1_00_00_000, "Cr");
+  }
+  if (Math.abs(value) >= 1_00_000) {
+    return format(value / 1_00_000, "L");
+  }
+  return value.toLocaleString("en-IN");
+}
+
 export function CansSummary({
   total,
   confirmed,
@@ -181,8 +194,11 @@ export function CansSummary({
             className="absolute inset-0 h-full w-full object-contain drop-shadow-[0_8px_18px_rgba(47,124,246,0.25)]"
           />
           <div className="relative text-center">
-            <p className="text-[34px] font-extrabold leading-none text-ink">
-              {total.toLocaleString("en-IN")}
+            <p
+              className="text-[34px] font-extrabold leading-none text-ink"
+              title={`${total.toLocaleString("en-IN")} cans`}
+            >
+              {compactIndianNumber(total)}
             </p>
             <p className="mt-1 text-[13px] text-ink-muted">Total Cans</p>
           </div>
@@ -194,8 +210,11 @@ export function CansSummary({
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: r.color }} />
                 {r.label}
               </span>
-              <span className="text-[13px] font-bold text-ink">
-                {r.value.toLocaleString("en-IN")}
+              <span
+                className="text-[13px] font-bold text-ink"
+                title={r.value.toLocaleString("en-IN")}
+              >
+                {compactIndianNumber(r.value)}
               </span>
             </li>
           ))}

@@ -6,7 +6,9 @@ import 'theme/app_colors.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'services/home_content_service.dart';
 import 'services/plant_config.dart';
+import 'services/app_config_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +21,11 @@ Future<void> main() async {
   // Pull live rate / delivery / contact from the admin-controlled settings.
   // Short timeout so a slow network never blocks app start (defaults kick in).
   try {
-    await PlantConfig.instance.load().timeout(const Duration(seconds: 3));
+    await Future.wait([
+      PlantConfig.instance.load(),
+      HomeContentService.instance.load(),
+      AppConfigService.instance.load(),
+    ]).timeout(const Duration(seconds: 4));
   } catch (_) {
     // Ignore — PlantConfig keeps its fallback defaults.
   }
@@ -31,14 +37,15 @@ class ThakaThokApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final config = AppConfigService.instance;
     return MaterialApp(
-      title: 'ThakaThok — Mahalakshmi Water Plant',
+      title: '${config.brandName} — ${config.plantDisplayName}',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
+          seedColor: config.primaryColor,
+          primary: config.primaryColor,
         ),
         scaffoldBackgroundColor: AppColors.scaffold,
         textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme),

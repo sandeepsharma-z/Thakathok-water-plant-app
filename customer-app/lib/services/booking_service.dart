@@ -15,12 +15,101 @@ class BookingService {
   /// can fall back to its built-in defaults.
   Future<AppSettings?> fetchSettings() async {
     try {
-      final row = await _db.from('settings').select().eq('id', 1).maybeSingle();
+      final row = await _db
+          .from('settings')
+          .select(
+            'id,per_can_rate,delivery_charge,delivery_free_threshold,'
+            'free_delivery_village,plant_name,plant_phone,razorpay_key_id,'
+            'offer_enabled,offer_title,offer_description,offer_code,'
+            'offer_discount_percent,offer_min_subtotal',
+          )
+          .eq('id', 1)
+          .maybeSingle();
       if (row == null) return null;
       return AppSettings.fromMap(row);
     } catch (_) {
       return null;
     }
+  }
+
+  Future<List<String>> fetchVillages() async {
+    try {
+      final rows = await _db
+          .from('villages')
+          .select('name')
+          .eq('enabled', true)
+          .order('sort_order');
+      return rows
+          .map((row) => (row['name'] as String?)?.trim() ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<Map<String, int?>> fetchVillageDeliveryCharges() async {
+    try {
+      final rows = await _db
+          .from('villages')
+          .select('name,delivery_charge')
+          .eq('enabled', true)
+          .order('sort_order');
+      return {
+        for (final row in rows)
+          if ('${row['name']}'.trim().isNotEmpty)
+            '${row['name']}'.trim(): (row['delivery_charge'] as num?)?.round(),
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  Future<CustomerOrderEligibility> customerOrderEligibility(
+    String mobile,
+  ) async {
+    try {
+      final data = await _db.rpc(
+        'get_customer_order_eligibility',
+        params: {'p_mobile': mobile},
+      );
+      final result = Map<String, dynamic>.from(data as Map);
+      return CustomerOrderEligibility(
+        eligible: result['eligible'] == true,
+        reason: '${result['reason'] ?? ''}',
+        pendingDues: (result['pending_dues'] as num?)?.toInt() ?? 0,
+        pendingCans: (result['pending_cans'] as num?)?.toInt() ?? 0,
+      );
+    } catch (_) {
+      return const CustomerOrderEligibility(
+        eligible: false,
+        reason: 'Could not verify your order eligibility. Please try again.',
+      );
+    }
+  }
+
+  Future<Set<String>> unavailableDates({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final rows = await _db
+        .from('blocked_dates')
+        .select('blocked_date')
+        .gte('blocked_date', _dateOnly(from))
+        .lte('blocked_date', _dateOnly(to));
+    return (rows as List)
+        .map((row) => '${(row as Map)['blocked_date']}')
+        .toSet();
+  }
+
+  Future<bool> isDateAvailable(DateTime date) async {
+    final row = await _db
+        .from('blocked_dates')
+        .select('blocked_date')
+        .eq('blocked_date', _dateOnly(date))
+        .limit(1)
+        .maybeSingle();
+    return row == null;
   }
 
   /// Persist a booking. Returns the created row's booking_code, or throws.
@@ -54,8 +143,19 @@ class BookingService {
     final inserted = await _db
         .from('bookings')
         .insert(payload)
-        .select('booking_code')
+        .select('id, booking_code')
         .single();
+    if (paymentMethod == 'cash') {
+      try {
+        await _db.functions.invoke(
+          'cash-booking-alert',
+          body: {'booking_id': inserted['id']},
+        );
+      } catch (_) {
+        // The booking is already saved. An alert failure must never duplicate
+        // or cancel the customer's order.
+      }
+    }
     return inserted['booking_code'] as String;
   }
 
@@ -139,11 +239,13 @@ class BookingService {
     }
 
     final bookings = await bookingsForMobile(mobile);
-    final pendingDues =
-        bookings.where((row) => row['status'] == 'confirmed').fold<int>(
-              0,
-              (total, row) => total + ((row['balance'] as num?)?.round() ?? 0),
-            );
+    final pendingDues = bookings
+        .where((row) =>
+            row['status'] == 'confirmed' || row['status'] == 'delivered')
+        .fold<int>(
+          0,
+          (total, row) => total + ((row['balance'] as num?)?.round() ?? 0),
+        );
     return CustomerHomeSummary(
       walletBalance: walletBalance,
       pendingDues: pendingDues,
@@ -163,6 +265,20 @@ class CustomerHomeSummary {
 
   final int walletBalance;
   final int pendingDues;
+}
+
+class CustomerOrderEligibility {
+  const CustomerOrderEligibility({
+    required this.eligible,
+    this.reason = '',
+    this.pendingDues = 0,
+    this.pendingCans = 0,
+  });
+
+  final bool eligible;
+  final String reason;
+  final int pendingDues;
+  final int pendingCans;
 }
 
 /// Admin-controlled settings mirrored from the `settings` table.

@@ -12,6 +12,7 @@ interface CustomerTableRow {
   village: string;
   address: string;
   avatar_url: string | null;
+  wallet_balance: number;
 }
 
 interface Agg {
@@ -24,11 +25,12 @@ interface Agg {
 export default async function CustomersPage() {
   const supabase = await createClient();
 
-  const [{ data: bookingData }, { data: custData, error }] = await Promise.all([
+  const [{ data: bookingData }, { data: custData, error }, { data: walletData }] = await Promise.all([
     supabase.from("bookings").select("*").order("created_at", { ascending: false }),
     supabase
       .from("customers")
-      .select("mobile, name, note, village, address, avatar_url"),
+      .select("mobile, name, note, village, address, avatar_url, wallet_balance"),
+    supabase.from("wallet_transactions").select("*").order("created_at", { ascending: false }),
   ]);
 
   const bookings = (bookingData ?? []) as Booking[];
@@ -71,6 +73,8 @@ export default async function CustomersPage() {
         registered: !!c,
         address: c?.address ?? "",
         avatarUrl: c?.avatar_url ?? null,
+        walletBalance: c?.wallet_balance ?? 0,
+        walletTransactions: (walletData ?? []).filter((t) => t.mobile === mobile),
         bookings: bookings.filter((b) => b.mobile === mobile),
       };
     })
@@ -117,6 +121,8 @@ export default async function CustomersPage() {
               registered={r.registered}
               address={r.address}
               avatarUrl={r.avatarUrl}
+              walletBalance={r.walletBalance}
+              walletTransactions={r.walletTransactions}
               bookings={r.bookings}
             />
           ))}

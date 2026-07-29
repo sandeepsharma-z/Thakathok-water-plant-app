@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
@@ -14,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _config = AppConfigService.instance;
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   final _mobile = TextEditingController();
@@ -55,10 +57,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       final raw = error.toString();
       final message = raw.contains('ACCOUNT_EXISTS')
-          ? 'An account already exists for this mobile number.'
+          ? _config.label('account_exists_error')
           : raw.contains('INVALID_LOGIN')
-              ? 'Mobile number or password is incorrect.'
-              : 'Could not continue. Check your connection and try again.';
+              ? _config.label('invalid_login_error')
+              : _config.label('connection_error');
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
     } finally {
@@ -79,7 +81,9 @@ class _LoginScreenState extends State<LoginScreen> {
               const Center(child: BrandLogo(size: 76)),
               const SizedBox(height: 24),
               Text(
-                _createAccount ? 'Create your account' : 'Welcome back',
+                _config.label(
+                  _createAccount ? 'register_heading' : 'login_heading',
+                ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.textDark,
@@ -89,9 +93,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 7),
               Text(
-                _createAccount
-                    ? 'Sign up once with your mobile number—no OTP needed.'
-                    : 'Login with your mobile number and password.',
+                _config.label(
+                  _createAccount ? 'register_subtitle' : 'login_subtitle',
+                ),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.body, fontSize: 12.5),
               ),
@@ -105,11 +109,11 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _name,
                         textCapitalization: TextCapitalization.words,
                         decoration: _dec(
-                          'Full Name',
+                          _config.label('full_name_label'),
                           Icons.person_outline_rounded,
                         ),
                         validator: (value) => (value ?? '').trim().isEmpty
-                            ? 'Enter your name'
+                            ? _config.label('name_required_error')
                             : null,
                       ),
                       const SizedBox(height: 15),
@@ -122,12 +126,12 @@ class _LoginScreenState extends State<LoginScreen> {
                         LengthLimitingTextInputFormatter(10),
                       ],
                       decoration: _dec(
-                        'Mobile Number',
+                        _config.label('mobile_label'),
                         Icons.phone_outlined,
                         prefix: '+91  ',
                       ),
                       validator: (value) => (value ?? '').length != 10
-                          ? 'Enter a valid 10-digit mobile number'
+                          ? _config.label('mobile_invalid_error')
                           : null,
                     ),
                     const SizedBox(height: 15),
@@ -135,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _password,
                       obscureText: _hidePassword,
                       decoration: _dec(
-                        'Password',
+                        _config.label('password_label'),
                         Icons.lock_outline_rounded,
                       ).copyWith(
                         suffixIcon: IconButton(
@@ -150,20 +154,20 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       validator: (value) => (value ?? '').length < 6
-                          ? 'Password must be at least 6 characters'
+                          ? _config.label('password_invalid_error')
                           : null,
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
                         onPressed: _working ? null : _submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.brand,
+                          backgroundColor: AppColors.liveBrand,
                           foregroundColor: Colors.white,
                           disabledBackgroundColor:
-                              AppColors.brand.withValues(alpha: 0.55),
+                              AppColors.liveBrand.withValues(alpha: 0.55),
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(13),
@@ -179,7 +183,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               )
                             : Text(
-                                _createAccount ? 'CREATE ACCOUNT' : 'LOGIN',
+                                _config.label(
+                                  _createAccount
+                                      ? 'register_button'
+                                      : 'login_button',
+                                ),
                                 style: const TextStyle(
                                   fontSize: 14.5,
                                   fontWeight: FontWeight.w800,
@@ -197,8 +205,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Text(
                     _createAccount
-                        ? 'Already have an account?'
-                        : "Don't have an account?",
+                        ? _config.label('have_account_text')
+                        : _config.label('no_account_text'),
                     style:
                         const TextStyle(color: AppColors.body, fontSize: 12.5),
                   ),
@@ -209,7 +217,11 @@ class _LoginScreenState extends State<LoginScreen> {
                               _createAccount = !_createAccount;
                               _formKey.currentState?.reset();
                             }),
-                    child: Text(_createAccount ? 'Login' : 'Create ID'),
+                    child: Text(
+                      _config.label(
+                        _createAccount ? 'login_link' : 'register_link',
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -228,7 +240,7 @@ InputDecoration _dec(
 }) =>
     InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, color: AppColors.brand),
+      prefixIcon: Icon(icon, color: AppColors.liveBrand),
       prefixText: prefix,
       filled: true,
       fillColor: const Color(0xFFF7FAFF),
@@ -242,6 +254,6 @@ InputDecoration _dec(
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(13),
-        borderSide: const BorderSide(color: AppColors.brand, width: 1.4),
+        borderSide: BorderSide(color: AppColors.liveBrand, width: 1.4),
       ),
     );

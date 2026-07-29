@@ -1,28 +1,55 @@
-import { CalendarClock, CreditCard, Wallet } from "lucide-react";
+import { CalendarClock, CreditCard, ReceiptIndianRupee } from "lucide-react";
 
 import { Card, EmptyState, StatTile } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, rupees, type Booking } from "@/lib/types";
+import { rupees } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-// Advance collected on confirmed bookings (online instantly, cash on confirm).
+type Collection = {
+  id: string;
+  booking_id: string;
+  collection_type: "advance" | "balance";
+  amount: number;
+  method: string;
+  reference: string;
+  note: string;
+  collected_at: string;
+  bookings:
+    | {
+        booking_code: string;
+        customer_name: string;
+        mobile: string;
+        status: string;
+      }
+    | {
+        booking_code: string;
+        customer_name: string;
+        mobile: string;
+        status: string;
+      }[]
+    | null;
+};
+
 export default async function PaymentsPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("bookings")
-    .select("*")
-    .eq("status", "confirmed")
-    .order("created_at", { ascending: false });
-  const paid = (data ?? []) as Booking[];
-
-  const totalAdvance = paid.reduce((s, b) => s + b.advance, 0);
-  const onlineTotal = paid
-    .filter((b) => b.payment_method === "online")
-    .reduce((s, b) => s + b.advance, 0);
-  const cashTotal = paid
-    .filter((b) => b.payment_method === "cash")
-    .reduce((s, b) => s + b.advance, 0);
+    .from("booking_collections")
+    .select(
+      "id,booking_id,collection_type,amount,method,reference,note,collected_at,bookings(booking_code,customer_name,mobile,status)",
+    )
+    .order("collected_at", { ascending: false });
+  const collections = (data ?? []) as Collection[];
+  const total = collections.reduce((sum, row) => sum + Number(row.amount), 0);
+  const advances = collections
+    .filter((row) => row.collection_type === "advance")
+    .reduce((sum, row) => sum + Number(row.amount), 0);
+  const balances = collections
+    .filter((row) => row.collection_type === "balance")
+    .reduce((sum, row) => sum + Number(row.amount), 0);
+  const cash = collections
+    .filter((row) => row.method === "cash")
+    .reduce((sum, row) => sum + Number(row.amount), 0);
 
   return (
     <>
@@ -31,82 +58,104 @@ export default async function PaymentsPage() {
           Payments &amp; Collections
         </h1>
         <p className="mt-1 text-[13px] text-ink-muted">
-          The 30% advance collected on confirmed orders.
+          Immutable history of booking advances and collected balances.
         </p>
       </header>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
-          label="Advance collected"
-          value={totalAdvance}
-          icon="wallet"
+          label="Total collected"
+          value={total}
+          icon="rupee"
           accent="ok"
           money
-          index={0}
         />
         <StatTile
-          label="Online (Razorpay)"
-          value={onlineTotal}
-          icon="rupee"
+          label="Booking advances"
+          value={advances}
+          icon="wallet"
           accent="brand"
           money
-          index={1}
         />
         <StatTile
-          label="Cash"
-          value={cashTotal}
-          icon="rupee"
+          label="Balances collected"
+          value={balances}
+          icon="check"
           accent="aqua"
           money
-          index={2}
+        />
+        <StatTile
+          label="Cash collected"
+          value={cash}
+          icon="rupee"
+          accent="warn"
+          money
         />
       </div>
 
-      {error || paid.length === 0 ? (
+      {error || collections.length === 0 ? (
         <Card className="mt-5">
           <EmptyState
             icon="wallet"
             title="No collections yet"
-            body="Advance payments from confirmed bookings will be listed here."
+            body="Booking advance and balance payments will appear here."
           />
         </Card>
       ) : (
-        <div className="mt-5 grid gap-3">
-          {paid.map((b) => {
-            const online = b.payment_method === "online";
-            return (
-              <Card key={b.id} className="p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-extrabold text-brand">
-                      {b.booking_code}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-muted">
-                      <span className="inline-flex items-center gap-1.5">
-                        {online ? (
-                          <CreditCard className="h-3.5 w-3.5" />
-                        ) : (
-                          <Wallet className="h-3.5 w-3.5" />
+        <Card className="mt-5 overflow-hidden">
+          <div className="divide-y divide-line">
+            {collections.map((collection) => {
+              const booking = Array.isArray(collection.bookings)
+                ? collection.bookings[0]
+                : collection.bookings;
+              return (
+                <div
+                  key={collection.id}
+                  className="flex flex-wrap items-center justify-between gap-4 p-4"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-tint text-brand">
+                      {collection.method === "online" ? (
+                        <CreditCard className="h-5 w-5" />
+                      ) : (
+                        <ReceiptIndianRupee className="h-5 w-5" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-brand">
+                        {booking?.booking_code}
+                      </p>
+                      <p className="text-[12px] font-semibold text-ink">
+                        {booking?.customer_name} · +91 {booking?.mobile}
+                      </p>
+                      <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10.5px] text-ink-muted">
+                        <CalendarClock className="h-3 w-3" />
+                        {new Date(collection.collected_at).toLocaleString(
+                          "en-IN",
                         )}
-                        {online ? "Online · Razorpay" : "Cash"}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <CalendarClock className="h-3.5 w-3.5" />
-                        {formatDate(b.event_date)}
-                      </span>
+                        {" · "}
+                        <span className="capitalize">
+                          {collection.collection_type} · {collection.method}
+                        </span>
+                        {collection.reference
+                          ? ` · Ref: ${collection.reference}`
+                          : ""}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-[11px] text-ink-faint">Advance paid</p>
+                    <p className="text-[10.5px] capitalize text-ink-faint">
+                      {collection.collection_type} collected
+                    </p>
                     <p className="text-[18px] font-extrabold text-ok">
-                      {rupees(b.advance)}
+                      {rupees(collection.amount)}
                     </p>
                   </div>
                 </div>
-              </Card>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
     </>
   );

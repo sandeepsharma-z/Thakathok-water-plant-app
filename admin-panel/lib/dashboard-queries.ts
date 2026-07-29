@@ -18,16 +18,27 @@ export async function getDashboardData(rangeKey?: string) {
   const [
     { data, error },
     { data: customerData, error: customerError },
+    { data: adminNotificationData, error: adminNotificationError },
+    { count: unreadAdminNotifications },
   ] = await Promise.all([
     supabase
       .from("bookings")
       .select("*")
       .order("created_at", { ascending: false }),
     supabase.from("customers").select("mobile"),
+    supabase
+      .from("admin_notifications")
+      .select("id,title,body,link,read_at,created_at")
+      .order("created_at", { ascending: false })
+      .limit(8),
+    supabase
+      .from("admin_notifications")
+      .select("*", { count: "exact", head: true })
+      .is("read_at", null),
   ]);
 
   const all = (data ?? []) as Booking[];
-  const ok = !error && !customerError;
+  const ok = !error && !customerError && !adminNotificationError;
   const customerMobiles = new Set<string>(
     (customerData ?? []).map((customer) => customer.mobile as string),
   );
@@ -156,6 +167,17 @@ export async function getDashboardData(rangeKey?: string) {
     },
     recent,
     pendingList,
+    adminNotifications: {
+      unread: unreadAdminNotifications ?? 0,
+      items: (adminNotificationData ?? []).map((item) => ({
+        id: item.id as string,
+        title: item.title as string,
+        body: item.body as string,
+        link: item.link as string,
+        readAt: item.read_at as string | null,
+        time: fmtTime(item.created_at as string),
+      })),
+    },
   };
 }
 

@@ -1,11 +1,9 @@
-import { ComingSoon } from "@/components/coming-soon";
-
-export default function ExpensesPage() {
-  return (
-    <ComingSoon
-      title="Expenses"
-      subtitle="Record diesel, staff and plant costs."
-      body="Soon you'll be able to log daily expenses (diesel, labour, maintenance) and see them against your collections to know your real profit."
-    />
-  );
+import { Card, EmptyState, StatTile } from "@/components/ui";
+import { PageHead, buttonClass, dangerClass, inputClass } from "@/components/management-ui";
+import { createClient } from "@/lib/supabase/server";
+import { deleteExpense, saveExpense } from "../management-actions";
+export const dynamic="force-dynamic";
+export default async function ExpensesPage(){
+ const db=await createClient(); const [{data:expenses},{data:branches}]=await Promise.all([db.from("expenses").select("*,branches(name)").order("expense_date",{ascending:false}).limit(250),db.from("branches").select("id,name").eq("enabled",true)]); const rows=expenses??[]; const total=rows.reduce((s,x)=>s+Number(x.amount),0); const month=new Date().toISOString().slice(0,7); const monthTotal=rows.filter(x=>x.expense_date.startsWith(month)).reduce((s,x)=>s+Number(x.amount),0);
+ return <><PageHead title="Expenses" body="Record diesel, labour, maintenance and other operating costs."/><div className="mt-5 grid gap-4 sm:grid-cols-2"><StatTile label="This month" value={monthTotal} icon="rupee" money accent="warn"/><StatTile label="Recorded total" value={total} icon="clipboard" money/></div><Card className="mt-5 p-5"><h2 className="font-extrabold text-ink">Add expense</h2><form action={saveExpense} className="mt-4 grid gap-3 md:grid-cols-3"><select name="category" required className={inputClass}><option value="">Select category</option>{["Diesel","Labour","Maintenance","Electricity","Packaging","Other"].map(x=><option key={x}>{x}</option>)}</select><input name="amount" required type="number" min="1" step="0.01" placeholder="Amount" className={inputClass}/><input name="expense_date" required type="date" defaultValue={new Date().toISOString().slice(0,10)} className={inputClass}/><select name="branch_id" className={inputClass}><option value="">General / all branches</option>{(branches??[]).map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</select><input name="description" placeholder="Description / note" className={inputClass}/><button className={buttonClass}>Save expense</button></form></Card>{rows.length===0?<Card className="mt-5"><EmptyState icon="rupee" title="No expenses yet" body="New expense records will appear here."/></Card>:<div className="mt-5 overflow-hidden rounded-3xl border border-line bg-surface"><div className="overflow-x-auto"><table className="w-full text-left text-[12px]"><thead className="bg-canvas text-ink-muted"><tr>{["Date","Category","Branch","Description","Amount",""].map(x=><th key={x} className="px-4 py-3">{x}</th>)}</tr></thead><tbody>{rows.map(x=><tr key={x.id} className="border-t border-line"><td className="px-4 py-3">{x.expense_date}</td><td className="px-4 py-3 font-bold text-ink">{x.category}</td><td className="px-4 py-3">{x.branches?.name??"General"}</td><td className="px-4 py-3">{x.description||"—"}</td><td className="px-4 py-3 font-extrabold text-danger">₹{Number(x.amount).toLocaleString("en-IN")}</td><td className="px-4 py-3"><form action={deleteExpense}><input type="hidden" name="id" value={x.id}/><button className={dangerClass}>Delete</button></form></td></tr>)}</tbody></table></div></div>}</>;
 }

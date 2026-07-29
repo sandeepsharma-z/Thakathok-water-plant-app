@@ -2,15 +2,19 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/product_pack.dart';
 import '../services/booking_service.dart';
+import '../services/home_content_service.dart';
 import '../services/plant_config.dart';
 import '../services/profile_store.dart';
 import '../services/notification_store.dart';
 import '../services/auth_service.dart';
+import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
+import '../widgets/content_image.dart';
 import 'all_product_packs_screen.dart';
 import 'bulk_order_form_screen.dart';
 import 'help_support_screen.dart';
@@ -20,6 +24,7 @@ import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'product_pack_details_screen.dart';
 import 'product_search_screen.dart';
+import 'wallet_screen.dart';
 
 const double _kPad = 14;
 
@@ -42,6 +47,8 @@ class _HomeScreenState extends State<HomeScreen>
   bool _notificationsRead = false;
   int _notificationCount = 0;
   CustomerHomeSummary _summary = const CustomerHomeSummary();
+  bool _bannerPrecacheStarted = false;
+  RealtimeChannel? _notificationChannel;
 
   @override
   void initState() {
@@ -52,12 +59,54 @@ class _HomeScreenState extends State<HomeScreen>
     );
     _loadProfile();
     _loadHomeData();
+    _subscribeToNotifications();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_bannerPrecacheStarted) {
+      _bannerPrecacheStarted = true;
+      _precacheHeroBanners();
+    }
+  }
+
+  void _precacheHeroBanners() {
+    for (final banner in HomeContentService.instance.heroBanners) {
+      if (banner.enabled &&
+          (banner.image.startsWith('http://') ||
+              banner.image.startsWith('https://'))) {
+        unawaited(precacheImage(NetworkImage(banner.image), context));
+      }
+    }
   }
 
   @override
   void dispose() {
+    if (_notificationChannel != null) {
+      Supabase.instance.client.removeChannel(_notificationChannel!);
+    }
     _refreshController.dispose();
     super.dispose();
+  }
+
+  Future<void> _subscribeToNotifications() async {
+    final mobile = await AuthService.instance.currentMobile() ?? '';
+    if (mobile.length != 10 || !mounted) return;
+    _notificationChannel = Supabase.instance.client
+        .channel('home-notifications-$mobile')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'customer_notifications',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'mobile',
+            value: mobile,
+          ),
+          callback: (_) => _loadNotificationState(),
+        )
+        .subscribe();
   }
 
   Future<void> _loadProfile() async {
@@ -67,17 +116,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadNotificationState() async {
     final mobile = await AuthService.instance.currentMobile() ?? '';
-    final results = await Future.wait([
-      NotificationStore.instance.areAllRead(mobile),
-      NotificationStore.instance.removedIds(mobile),
-    ]);
-    final removed = results[1] as Set<String>;
+    final unread = await NotificationStore.instance.unreadCount(mobile);
     if (mounted) {
       setState(() {
-        _notificationsRead = results[0] as bool;
-        _notificationCount = appNotifications
-            .where((notification) => !removed.contains(notification.id))
-            .length;
+        _notificationsRead = unread == 0;
+        _notificationCount = unread;
       });
     }
   }
@@ -117,15 +160,27 @@ class _HomeScreenState extends State<HomeScreen>
     await _loadProfile();
   }
 
+  Future<void> _openWallet() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => WalletScreen(mobile: _profile.mobile),
+      ),
+    );
+    await _loadFinancialSummary();
+  }
+
   Future<void> _refreshHome() async {
     final started = DateTime.now();
     await Future.wait([
       PlantConfig.instance.load(),
+      HomeContentService.instance.load(),
+      AppConfigService.instance.load(),
       ProfileStore.instance.load().then((profile) {
         if (mounted) setState(() => _profile = profile);
       }),
       _loadHomeData(),
     ]);
+    if (mounted) _precacheHeroBanners();
     final elapsed = DateTime.now().difference(started);
     if (elapsed < const Duration(milliseconds: 700)) {
       await Future<void>.delayed(
@@ -210,22 +265,34 @@ class _HomeScreenState extends State<HomeScreen>
                               const SizedBox(height: 12),
                               const _SearchBar(),
                               const SizedBox(height: _kGap),
-                              const _BannerCarousel(),
+                              _BannerCarousel(
+                                banners:
+                                    HomeContentService.instance.heroBanners,
+                              ),
                               const SizedBox(height: 12),
-                              _QuickActions(profile: _profile),
+                              _QuickActions(
+                                profile: _profile,
+                                onOpenWallet: _openWallet,
+                              ),
                               const SizedBox(height: _kGap),
                               _WalletDuesRow(
                                 walletBalance: _summary.walletBalance,
                                 pendingDues: _summary.pendingDues,
                                 mobile: _profile.mobile,
+                                onOpenWallet: _openWallet,
                               ),
                               if (PlantConfig.instance.offerEnabled) ...[
                                 const SizedBox(height: _kGap),
-                                const _OfferCard(),
+                                _OfferCard(
+                                  title: PlantConfig.instance.offerTitle,
+                                  description:
+                                      PlantConfig.instance.offerDescription,
+                                  code: PlantConfig.instance.offerCode,
+                                ),
                               ],
                               const SizedBox(height: _kGap),
                               _SectionHeader(
-                                title: 'Most Popular 🔥',
+                                title: AppConfigService.instance.popularHeading,
                                 trailing: 'View All',
                                 onTrailingTap: () => Navigator.of(context).push(
                                   MaterialPageRoute(
@@ -237,20 +304,29 @@ class _HomeScreenState extends State<HomeScreen>
                               const SizedBox(height: 12),
                               const _PopularSlider(),
                               const SizedBox(height: _kGap),
-                              _AssetBanner(
-                                'assets/images/image 12.png',
-                                419 / 207,
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const BulkOrderFormScreen(),
-                                  ),
+                              if (HomeContentService
+                                      .instance.promoBanners.isNotEmpty &&
+                                  HomeContentService
+                                      .instance.promoBanners.first.enabled)
+                                _DynamicPromoBanner(
+                                  banner: HomeContentService
+                                      .instance.promoBanners.first,
                                 ),
+                              const SizedBox(height: _kGap),
+                              _ShopByNeed(
+                                categories:
+                                    HomeContentService.instance.categories,
                               ),
                               const SizedBox(height: _kGap),
-                              const _ShopByNeed(),
-                              const SizedBox(height: _kGap),
-                              const _AssetBanner(
-                                  'assets/images/image 25.png', 428 / 109),
+                              if (HomeContentService
+                                          .instance.promoBanners.length >
+                                      1 &&
+                                  HomeContentService
+                                      .instance.promoBanners[1].enabled)
+                                _DynamicPromoBanner(
+                                  banner: HomeContentService
+                                      .instance.promoBanners[1],
+                                ),
                               const SizedBox(height: _kGap),
                               const _TrustStrip(),
                             ],
@@ -269,12 +345,15 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ],
       ),
-      bottomNavigationBar: _Footer(onOpenProfile: _openProfile),
+      bottomNavigationBar: _Footer(
+        onOpenProfile: _openProfile,
+        onOpenWallet: _openWallet,
+      ),
     );
   }
 }
 
-// ── Header ────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _WaterRefreshBadge extends StatelessWidget {
   const _WaterRefreshBadge({
     required this.status,
@@ -305,13 +384,13 @@ class _WaterRefreshBadge extends StatelessWidget {
             child: Container(
               height: 42,
               width: 42,
-              padding: const EdgeInsets.all(7),
+              padding: EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.96),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.brand.withValues(alpha: 0.16),
+                    color: AppColors.liveBrand.withValues(alpha: 0.16),
                     blurRadius: 16,
                     offset: const Offset(0, 5),
                   ),
@@ -342,7 +421,7 @@ class _DottedLoaderPainter extends CustomPainter {
       final opacity = 0.22 + (0.78 * (i + 1) / dots);
       final dotRadius = 1.5 + (0.8 * (i + 1) / dots);
       final paint = Paint()
-        ..color = AppColors.brand.withValues(alpha: opacity)
+        ..color = AppColors.liveBrand.withValues(alpha: opacity)
         ..style = PaintingStyle.fill;
       canvas.drawCircle(
         Offset(
@@ -380,9 +459,9 @@ class _Header extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Brand logo — truly centred on the screen.
+            // Brand logo Ã¢â‚¬â€ truly centred on the screen.
             const BrandLogo(size: 44),
-            // Menu — pinned left. Nudged out so the glyph's stroke lines up
+            // Menu Ã¢â‚¬â€ pinned left. Nudged out so the glyph's stroke lines up
             // with the greeting text below it, not the icon's padded box.
             Align(
               alignment: Alignment.centerLeft,
@@ -398,7 +477,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-            // Notifications + profile — pinned right
+            // Notifications + profile Ã¢â‚¬â€ pinned right
             Align(
               alignment: Alignment.centerRight,
               child: Row(
@@ -448,14 +527,14 @@ class _Header extends StatelessWidget {
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: profile.avatarUrl.isEmpty
-                          ? const Icon(Icons.person_rounded,
-                              color: AppColors.brand, size: 21)
+                          ? Icon(Icons.person_rounded,
+                              color: AppColors.liveBrand, size: 21)
                           : Image.network(
                               profile.avatarUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(
+                              errorBuilder: (_, __, ___) => Icon(
                                 Icons.person_rounded,
-                                color: AppColors.brand,
+                                color: AppColors.liveBrand,
                                 size: 21,
                               ),
                             ),
@@ -471,13 +550,13 @@ class _Header extends StatelessWidget {
   }
 }
 
-// ── Notifications ─────────────────────────────────────────────────────
-/// App notifications. Static for now — booking/payment updates will be wired
+// Ã¢â€â‚¬Ã¢â€â‚¬ Notifications Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+/// App notifications. Static for now Ã¢â‚¬â€ booking/payment updates will be wired
 /// to Supabase once phone-OTP auth lands.
 const List<({IconData icon, String title, String body})> _kNotifications = [
   (
     icon: Icons.water_drop_rounded,
-    title: 'Welcome to ThakaThok 💧',
+    title: 'Welcome to ThakaThok Ã°Å¸â€™Â§',
     body: 'Book bulk water for your weddings & events in just a few taps.',
   ),
   (
@@ -529,23 +608,23 @@ class _NotificationsSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Row(
               children: [
-                const Icon(Icons.notifications_rounded,
-                    color: AppColors.brand, size: 22),
+                Icon(Icons.notifications_rounded,
+                    color: AppColors.liveBrand, size: 22),
                 const SizedBox(width: 8),
                 const Text('Notifications',
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textDark)),
-                const Spacer(),
+                Spacer(),
                 Text('${_kNotifications.length} new',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.brand)),
+                        color: AppColors.liveBrand)),
               ],
             ),
             const SizedBox(height: 8),
@@ -590,7 +669,7 @@ class _NotificationTile extends StatelessWidget {
               color: AppColors.tint,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(n.icon, size: 19, color: AppColors.brand),
+            child: Icon(n.icon, size: 19, color: AppColors.liveBrand),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -615,7 +694,7 @@ class _NotificationTile extends StatelessWidget {
   }
 }
 
-// ── Side drawer ───────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Side drawer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _AppDrawer extends StatelessWidget {
   const _AppDrawer({
     required this.profile,
@@ -647,9 +726,9 @@ class _AppDrawer extends StatelessWidget {
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: AppColors.textDark)),
-                      const Text('Mahalakshmi Water Plant',
-                          style:
-                              TextStyle(fontSize: 10.5, color: AppColors.body)),
+                      Text(AppConfigService.instance.plantDisplayName,
+                          style: const TextStyle(
+                              fontSize: 10.5, color: AppColors.body)),
                     ],
                   ),
                 ],
@@ -658,7 +737,7 @@ class _AppDrawer extends StatelessWidget {
             const Divider(height: 1),
             _DrawerItem(
               icon: Icons.person_outline_rounded,
-              label: 'My Profile',
+              label: AppConfigService.instance.label('drawer_profile'),
               onTap: () {
                 Navigator.pop(context);
                 onOpenProfile();
@@ -666,7 +745,7 @@ class _AppDrawer extends StatelessWidget {
             ),
             _DrawerItem(
               icon: Icons.water_drop_outlined,
-              label: 'Request Bulk Order',
+              label: AppConfigService.instance.label('drawer_order'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.of(context).push(MaterialPageRoute(
@@ -675,18 +754,28 @@ class _AppDrawer extends StatelessWidget {
             ),
             _DrawerItem(
               icon: Icons.receipt_long_outlined,
-              label: 'My Bookings',
+              label: AppConfigService.instance.label('drawer_bookings'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => const MyBookingsScreen()));
               },
             ),
-            const _DrawerItem(
-                icon: Icons.account_balance_wallet_outlined, label: 'Wallet'),
+            _DrawerItem(
+              icon: Icons.account_balance_wallet_outlined,
+              label: AppConfigService.instance.label('drawer_wallet'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => WalletScreen(mobile: profile.mobile),
+                  ),
+                );
+              },
+            ),
             _DrawerItem(
               icon: Icons.headset_mic_outlined,
-              label: 'Help & Support',
+              label: AppConfigService.instance.label('drawer_support'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.of(context).push(MaterialPageRoute(
@@ -695,7 +784,7 @@ class _AppDrawer extends StatelessWidget {
             ),
             _DrawerItem(
               icon: Icons.logout_rounded,
-              label: 'Logout',
+              label: AppConfigService.instance.label('drawer_logout'),
               onTap: () async {
                 await AuthService.instance.logout();
                 if (!context.mounted) return;
@@ -710,7 +799,7 @@ class _AppDrawer extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'ThakaThok · Mahalakshmi Water Plant',
+                'ThakaThok Ã‚Â· Mahalakshmi Water Plant',
                 style: TextStyle(
                     fontSize: 10.5,
                     color: AppColors.body.withValues(alpha: 0.7)),
@@ -732,8 +821,8 @@ class _DrawerItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-      leading: Icon(icon, color: AppColors.brand, size: 25),
+      contentPadding: EdgeInsets.symmetric(horizontal: 20),
+      leading: Icon(icon, color: AppColors.liveBrand, size: 25),
       title: Text(label,
           style: const TextStyle(
               fontSize: 15.5,
@@ -743,7 +832,7 @@ class _DrawerItem extends StatelessWidget {
           () {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$label — coming soon')),
+              SnackBar(content: Text('$label Ã¢â‚¬â€ coming soon')),
             );
           },
       minLeadingWidth: 28,
@@ -752,12 +841,12 @@ class _DrawerItem extends StatelessWidget {
   }
 }
 
-// ── Greeting ──────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Greeting Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _Greeting extends StatelessWidget {
   const _Greeting({required this.profile});
   final CustomerProfile profile;
 
-  /// Customer name — comes from the profile once accounts are wired up.
+  /// Customer name Ã¢â‚¬â€ comes from the profile once accounts are wired up.
 
   String get _timeOfDay {
     final h = DateTime.now().hour;
@@ -785,45 +874,50 @@ class _Greeting extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       color: AppColors.textDark,
                       height: 1.15)),
-              Text('👋', style: TextStyle(fontSize: 16)),
+              Text('Ã°Å¸â€˜â€¹', style: TextStyle(fontSize: 16)),
             ],
           ),
           const SizedBox(height: 2),
-          const Text('Stay Hydrated, Stay Healthy 💧',
-              style: TextStyle(fontSize: 11.5, color: AppColors.body)),
+          Text(AppConfigService.instance.greetingTagline,
+              style: const TextStyle(fontSize: 11.5, color: AppColors.body)),
         ],
       ),
     );
   }
 }
 
-// ── Wallet balance + pending dues ─────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Wallet balance + pending dues Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 String _firstName(String fullName) {
   final trimmed = fullName.trim();
   return trimmed.isEmpty ? 'Customer' : trimmed.split(RegExp(r'\s+')).first;
 }
 
 class _QuickActions extends StatelessWidget {
-  const _QuickActions({required this.profile});
+  const _QuickActions({
+    required this.profile,
+    required this.onOpenWallet,
+  });
 
   final CustomerProfile profile;
+  final VoidCallback onOpenWallet;
 
   @override
   Widget build(BuildContext context) {
+    final copy = AppConfigService.instance.quickActions;
     final actions =
         <({IconData icon, String title, String subtitle, VoidCallback onTap})>[
       (
         icon: Icons.water_drop_rounded,
-        title: 'Order Water',
-        subtitle: 'New order',
+        title: copy[0]['title']!,
+        subtitle: copy[0]['subtitle']!,
         onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const BulkOrderFormScreen()),
             ),
       ),
       (
         icon: Icons.sync_rounded,
-        title: 'Repeat Order',
-        subtitle: 'Quick reorder',
+        title: copy[1]['title']!,
+        subtitle: copy[1]['subtitle']!,
         onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => MyBookingsScreen(initialMobile: profile.mobile),
@@ -832,8 +926,8 @@ class _QuickActions extends StatelessWidget {
       ),
       (
         icon: Icons.receipt_long_rounded,
-        title: 'My Orders',
-        subtitle: 'Track & history',
+        title: copy[2]['title']!,
+        subtitle: copy[2]['subtitle']!,
         onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => MyBookingsScreen(initialMobile: profile.mobile),
@@ -842,17 +936,14 @@ class _QuickActions extends StatelessWidget {
       ),
       (
         icon: Icons.account_balance_wallet_rounded,
-        title: 'My Wallet',
-        subtitle: 'Balance & history',
-        onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Your wallet balance is shown below.')),
-            ),
+        title: copy[3]['title']!,
+        subtitle: copy[3]['subtitle']!,
+        onTap: onOpenWallet,
       ),
       (
         icon: Icons.headset_mic_rounded,
-        title: 'Support',
-        subtitle: 'Help & support',
+        title: copy[4]['title']!,
+        subtitle: copy[4]['subtitle']!,
         onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
             ),
@@ -862,14 +953,14 @@ class _QuickActions extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _kPad),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(5, 13, 5, 12),
+        padding: EdgeInsets.fromLTRB(5, 13, 5, 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: AppColors.hairline),
           boxShadow: [
             BoxShadow(
-              color: AppColors.brand.withValues(alpha: 0.08),
+              color: AppColors.liveBrand.withValues(alpha: 0.08),
               blurRadius: 18,
               offset: const Offset(0, 7),
             ),
@@ -891,14 +982,14 @@ class _QuickActions extends StatelessWidget {
                         Container(
                           height: 43,
                           width: 43,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: AppColors.tint,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             action.icon,
                             size: 23,
-                            color: AppColors.brand,
+                            color: AppColors.liveBrand,
                           ),
                         ),
                         const SizedBox(height: 7),
@@ -907,10 +998,10 @@ class _QuickActions extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 9.3,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.heading,
+                            color: AppColors.liveBrand,
                             height: 1.1,
                           ),
                         ),
@@ -942,18 +1033,20 @@ class _WalletDuesRow extends StatelessWidget {
     required this.walletBalance,
     required this.pendingDues,
     required this.mobile,
+    required this.onOpenWallet,
   });
 
   final int walletBalance;
   final int pendingDues;
   final String mobile;
+  final VoidCallback onOpenWallet;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _kPad),
       // IntrinsicHeight gives the Row a bounded height so both cards can
-      // stretch to match — a bare `stretch` would be unbounded in a scroll view.
+      // stretch to match Ã¢â‚¬â€ a bare `stretch` would be unbounded in a scroll view.
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -962,13 +1055,14 @@ class _WalletDuesRow extends StatelessWidget {
               child: _MoneyCard(
                 icon: Icons.account_balance_wallet_rounded,
                 iconBg: AppColors.tint,
-                iconColor: AppColors.brand,
+                iconColor: AppColors.liveBrand,
                 title: 'Wallet Balance',
-                titleColor: AppColors.brand,
-                amount: '₹$walletBalance',
+                titleColor: AppColors.liveBrand,
+                amount: 'Ã¢â€šÂ¹$walletBalance',
                 paise: '.00',
                 action: 'Add Money',
                 actionFilled: true,
+                onAction: onOpenWallet,
               ),
             ),
             const SizedBox(width: 12),
@@ -979,7 +1073,7 @@ class _WalletDuesRow extends StatelessWidget {
                 iconColor: Color(0xFFE23D3D),
                 title: 'Pending Dues',
                 titleColor: const Color(0xFFE23D3D),
-                amount: '₹$pendingDues',
+                amount: 'Ã¢â€šÂ¹$pendingDues',
                 paise: '.00',
                 action: 'View Details',
                 actionFilled: false,
@@ -1082,7 +1176,7 @@ class _MoneyCard extends StatelessWidget {
                       color: AppColors.body)),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           SizedBox(
             height: 34,
             width: double.infinity,
@@ -1090,7 +1184,7 @@ class _MoneyCard extends StatelessWidget {
                 ? ElevatedButton(
                     onPressed: onAction ?? () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.brand,
+                      backgroundColor: AppColors.liveBrand,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: EdgeInsets.zero,
@@ -1135,19 +1229,20 @@ class _MoneyCard extends StatelessWidget {
   }
 }
 
-// ── Trust strip ───────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Trust strip Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _TrustStrip extends StatelessWidget {
   const _TrustStrip();
 
-  static const _items = [
-    (Icons.verified_user_outlined, '100% Pure\n& Safe'),
-    (Icons.local_shipping_outlined, 'On-Time\nDelivery'),
-    (Icons.sync_rounded, 'Easy\nReturns'),
-    (Icons.workspace_premium_outlined, 'Best Price\nGuaranteed'),
+  static const _icons = [
+    Icons.verified_user_outlined,
+    Icons.local_shipping_outlined,
+    Icons.sync_rounded,
+    Icons.workspace_premium_outlined,
   ];
 
   @override
   Widget build(BuildContext context) {
+    final titles = AppConfigService.instance.trustItems;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _kPad),
       child: Container(
@@ -1158,15 +1253,15 @@ class _TrustStrip extends StatelessWidget {
         ),
         child: Row(
           children: [
-            for (var i = 0; i < _items.length; i++) ...[
+            for (var i = 0; i < _icons.length; i++) ...[
               Expanded(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(_items[i].$1, size: 19, color: AppColors.brand),
+                    Icon(_icons[i], size: 19, color: AppColors.liveBrand),
                     const SizedBox(height: 5),
                     Text(
-                      _items[i].$2,
+                      titles[i],
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 9.5,
@@ -1178,7 +1273,7 @@ class _TrustStrip extends StatelessWidget {
                   ],
                 ),
               ),
-              if (i != _items.length - 1)
+              if (i != _icons.length - 1)
                 Container(
                   width: 1,
                   height: 30,
@@ -1192,7 +1287,7 @@ class _TrustStrip extends StatelessWidget {
   }
 }
 
-// ── Search bar ────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Search bar Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _SearchBar extends StatefulWidget {
   const _SearchBar();
 
@@ -1256,7 +1351,7 @@ class _SearchBarState extends State<_SearchBar> {
                     onTapOutside: (_) => _focus.unfocus(),
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _searchProducts(),
-                    cursorColor: AppColors.brand,
+                    cursorColor: AppColors.liveBrand,
                     style: const TextStyle(
                         fontSize: 13, color: AppColors.textDark),
                     decoration: InputDecoration(
@@ -1267,12 +1362,12 @@ class _SearchBarState extends State<_SearchBar> {
                       fillColor: Colors.white,
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: AppColors.hairline),
+                        borderSide: BorderSide(color: AppColors.hairline),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: AppColors.brand, width: 1.3),
+                        borderSide:
+                            BorderSide(color: AppColors.liveBrand, width: 1.3),
                       ),
                     ),
                   ),
@@ -1305,7 +1400,7 @@ class _SearchButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.brand,
+      color: AppColors.liveBrand,
       borderRadius: BorderRadius.circular(10),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -1326,7 +1421,7 @@ class _SearchButton extends StatelessWidget {
   }
 }
 
-/// Small white bubbles that rise slowly and fade — a subtle "water" motion
+/// Small white bubbles that rise slowly and fade Ã¢â‚¬â€ a subtle "water" motion
 /// behind the search icon.
 class _RisingBubbles extends StatefulWidget {
   const _RisingBubbles();
@@ -1402,7 +1497,7 @@ class _BubblePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..style = PaintingStyle.fill;
     for (final b in bubbles) {
-      final p = ((t * b.speed) + b.phase) % 1.0; // 0 (bottom) → 1 (top)
+      final p = ((t * b.speed) + b.phase) % 1.0; // 0 (bottom) Ã¢â€ â€™ 1 (top)
       final y = size.height * (1 - p);
       final x = size.width *
           (b.x + b.drift * math.sin(p * math.pi * 2)).clamp(0.05, 0.95);
@@ -1417,7 +1512,7 @@ class _BubblePainter extends CustomPainter {
 }
 
 /// Placeholder that types itself out, holds, deletes and moves to the
-/// next phrase — with a blinking caret.
+/// next phrase Ã¢â‚¬â€ with a blinking caret.
 class _TypingHint extends StatefulWidget {
   const _TypingHint({super.key});
 
@@ -1426,12 +1521,7 @@ class _TypingHint extends StatefulWidget {
 }
 
 class _TypingHintState extends State<_TypingHint> {
-  static const _phrases = [
-    'Search  for water products',
-    'Search  for Jar Water 20L',
-    'Search  for Water Bottle 1.5L',
-    'Search  for Jar Water 10L',
-  ];
+  List<String> get _phrases => AppConfigService.instance.searchPhrases;
 
   int _phrase = 0;
   int _chars = 0;
@@ -1538,20 +1628,17 @@ class _CaretState extends State<_Caret> with SingleTickerProviderStateMixin {
   }
 }
 
-// ── Banner carousel ───────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Banner carousel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _BannerCarousel extends StatefulWidget {
-  const _BannerCarousel();
+  const _BannerCarousel({required this.banners});
+
+  final List<HomeBanner> banners;
 
   @override
   State<_BannerCarousel> createState() => _BannerCarouselState();
 }
 
 class _BannerCarouselState extends State<_BannerCarousel> {
-  static const _banners = [
-    'assets/images/image 17.png',
-    'assets/images/image 14.png',
-  ];
-
   final _controller = PageController();
   int _index = 0;
   Timer? _timer;
@@ -1562,7 +1649,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted || !_controller.hasClients) return;
       _controller.animateToPage(
-        (_index + 1) % _banners.length,
+        (_index + 1) % widget.banners.length,
         duration: const Duration(milliseconds: 450),
         curve: Curves.easeInOut,
       );
@@ -1588,10 +1675,12 @@ class _BannerCarouselState extends State<_BannerCarousel> {
               borderRadius: BorderRadius.circular(12),
               child: PageView.builder(
                 controller: _controller,
-                itemCount: _banners.length,
+                itemCount: widget.banners.length,
                 onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (_, i) =>
-                    Image.asset(_banners[i], fit: BoxFit.cover),
+                itemBuilder: (_, i) => ContentImage(
+                  source: widget.banners[i].image,
+                  fit: BoxFit.cover,
+                ),
               ),
             ),
           ),
@@ -1599,15 +1688,15 @@ class _BannerCarouselState extends State<_BannerCarousel> {
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(_banners.length, (i) {
+          children: List.generate(widget.banners.length, (i) {
             final active = i == _index;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 250),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
+              margin: EdgeInsets.symmetric(horizontal: 3),
               width: active ? 22 : 8,
               height: 6,
               decoration: BoxDecoration(
-                color: active ? AppColors.brand : const Color(0xFFBFD8F5),
+                color: active ? AppColors.liveBrand : Color(0xFFBFD8F5),
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -1618,9 +1707,17 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 }
 
-// ── Weekend splash offer ──────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Weekend splash offer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _OfferCard extends StatelessWidget {
-  const _OfferCard();
+  const _OfferCard({
+    required this.title,
+    required this.description,
+    required this.code,
+  });
+
+  final String title;
+  final String description;
+  final String code;
 
   @override
   Widget build(BuildContext context) {
@@ -1641,13 +1738,13 @@ class _OfferCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(PlantConfig.instance.offerTitle,
-                      style: const TextStyle(
-                          color: AppColors.heading,
+                  Text(title,
+                      style: TextStyle(
+                          color: AppColors.liveBrand,
                           fontWeight: FontWeight.w600,
                           fontSize: 15)),
                   const SizedBox(height: 3),
-                  Text(PlantConfig.instance.offerDescription,
+                  Text(description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1659,7 +1756,7 @@ class _OfferCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const _DashedCodeBox(),
+            _DashedCodeBox(code: code),
           ],
         ),
       ),
@@ -1668,7 +1765,9 @@ class _OfferCard extends StatelessWidget {
 }
 
 class _DashedCodeBox extends StatelessWidget {
-  const _DashedCodeBox();
+  const _DashedCodeBox({required this.code});
+
+  final String code;
 
   @override
   Widget build(BuildContext context) {
@@ -1683,13 +1782,13 @@ class _DashedCodeBox extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Use Code',
+            Text('Use Code',
                 style: TextStyle(fontSize: 8.5, color: AppColors.body)),
-            Text(PlantConfig.instance.offerCode,
-                style: const TextStyle(
+            Text(code,
+                style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.heading)),
+                    color: AppColors.liveBrand)),
           ],
         ),
       ),
@@ -1725,7 +1824,7 @@ class _DashedBorderPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ── Section header ────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Section header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.title,
@@ -1759,16 +1858,16 @@ class _SectionHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(trailing!,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.brand,
+                            color: AppColors.liveBrand,
                             height: 1)),
-                    const SizedBox(width: 3),
-                    const Icon(
+                    SizedBox(width: 3),
+                    Icon(
                       Icons.arrow_forward_rounded,
                       size: 16,
-                      color: AppColors.brand,
+                      color: AppColors.liveBrand,
                     ),
                   ],
                 ),
@@ -1780,7 +1879,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ── Most popular slider ───────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Most popular slider Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _PopularSlider extends StatelessWidget {
   const _PopularSlider();
 
@@ -1813,14 +1912,14 @@ class _ProductCard extends StatelessWidget {
       ),
       child: Container(
         width: 150,
-        padding: const EdgeInsets.fromLTRB(9, 9, 9, 12),
+        padding: EdgeInsets.fromLTRB(9, 9, 9, 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.cardBorder),
           boxShadow: [
             BoxShadow(
-              color: AppColors.brand.withValues(alpha: 0.05),
+              color: AppColors.liveBrand.withValues(alpha: 0.05),
               blurRadius: 12,
               offset: const Offset(0, 5),
             ),
@@ -1834,8 +1933,8 @@ class _ProductCard extends StatelessWidget {
                 tag: pack.image,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.asset(
-                    pack.image,
+                  child: ContentImage(
+                    source: pack.image,
                     width: double.infinity,
                     fit: BoxFit.cover,
                   ),
@@ -1851,7 +1950,7 @@ class _ProductCard extends StatelessWidget {
                 maxLines: 2,
                 textAlign: TextAlign.left,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   height: 1.25,
                   fontWeight: FontWeight.w700,
@@ -1859,15 +1958,15 @@ class _ProductCard extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 5),
+            SizedBox(height: 5),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 pack.quantityLabel,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.brand,
+                  color: AppColors.liveBrand,
                 ),
               ),
             ),
@@ -1878,12 +1977,11 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
-// ── Full-bleed asset banner ───────────────────────────────────────────
-class _AssetBanner extends StatelessWidget {
-  const _AssetBanner(this.path, this.ratio, {this.onTap});
-  final String path;
-  final double ratio;
-  final VoidCallback? onTap;
+// Ã¢â€â‚¬Ã¢â€â‚¬ Full-bleed asset banner Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+class _DynamicPromoBanner extends StatelessWidget {
+  const _DynamicPromoBanner({required this.banner});
+
+  final HomeBanner banner;
 
   @override
   Widget build(BuildContext context) {
@@ -1894,10 +1992,16 @@ class _AssetBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: onTap,
+          onTap: banner.action == 'order'
+              ? () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const BulkOrderFormScreen(),
+                    ),
+                  )
+              : null,
           child: AspectRatio(
-            aspectRatio: ratio,
-            child: Image.asset(path, fit: BoxFit.cover),
+            aspectRatio: banner.action == 'order' ? 419 / 207 : 428 / 109,
+            child: ContentImage(source: banner.image, fit: BoxFit.cover),
           ),
         ),
       ),
@@ -1905,18 +2009,14 @@ class _AssetBanner extends StatelessWidget {
   }
 }
 
-// ── Shop by need ──────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Shop by need Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _ShopByNeed extends StatelessWidget {
-  const _ShopByNeed();
+  const _ShopByNeed({required this.categories});
+
+  final List<ShopCategory> categories;
 
   @override
   Widget build(BuildContext context) {
-    const cats = [
-      ('Wedding', 'assets/images/Products/Jumbo Event Pack.png', 'Wedding'),
-      ('Birthday', 'assets/images/Products/Mini Event Pack.png', 'Birthday'),
-      ('Large Events', 'assets/images/Products/Large Event Pack.png', 'Other'),
-      ('Custom Need', 'assets/images/Products/Custom Event Pack.png', 'Other'),
-    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1924,8 +2024,8 @@ class _ShopByNeed extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: _kPad),
           child: Row(
             children: [
-              const Text('Shop By Need',
-                  style: TextStyle(
+              Text(AppConfigService.instance.shopHeading,
+                  style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
                       color: Colors.black)),
@@ -1939,14 +2039,14 @@ class _ShopByNeed extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: _kPad),
           child: Row(
             children: [
-              for (final c in cats)
+              for (final category in categories.take(4))
                 Expanded(
                   child: InkWell(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => BulkOrderFormScreen(
-                          initialEventType: c.$3,
-                          startWithCustomQuantity: c.$1 == 'Custom Need',
+                          initialEventType: category.eventType,
+                          startWithCustomQuantity: category.customQuantity,
                         ),
                       ),
                     ),
@@ -1964,20 +2064,23 @@ class _ShopByNeed extends StatelessWidget {
                               border: Border.all(color: AppColors.hairline),
                             ),
                             child: ClipOval(
-                              child: Image.asset(c.$2, fit: BoxFit.contain),
+                              child: ContentImage(
+                                source: category.image,
+                                fit: BoxFit.contain,
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          c.$1,
+                          category.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: AppColors.brand,
+                            color: AppColors.liveBrand,
                           ),
                         ),
                       ],
@@ -1992,10 +2095,14 @@ class _ShopByNeed extends StatelessWidget {
   }
 }
 
-// ── Footer ────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Footer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 class _Footer extends StatefulWidget {
-  const _Footer({required this.onOpenProfile});
+  const _Footer({
+    required this.onOpenProfile,
+    required this.onOpenWallet,
+  });
   final VoidCallback onOpenProfile;
+  final VoidCallback onOpenWallet;
 
   @override
   State<_Footer> createState() => _FooterState();
@@ -2012,7 +2119,7 @@ class _FooterState extends State<_Footer> with SingleTickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
-    // Gently swells past the circle's edge, then eases back — never tiny.
+    // Gently swells past the circle's edge, then eases back Ã¢â‚¬â€ never tiny.
     _pulse = Tween<double>(begin: 1.55, end: 2.15).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
@@ -2049,12 +2156,15 @@ class _FooterState extends State<_Footer> with SingleTickerProviderStateMixin {
                   ),
                   child: Row(
                     children: [
-                      const Expanded(
-                          child: _NavItem(Icons.home_filled, 'Home',
+                      Expanded(
+                          child: _NavItem(Icons.home_filled,
+                              AppConfigService.instance.label('bottom_home'),
                               active: true)),
                       Expanded(
                           child: _NavItem(
-                              Icons.receipt_long_outlined, 'My Bookings',
+                              Icons.receipt_long_outlined,
+                              AppConfigService.instance
+                                  .label('bottom_bookings'),
                               onTap: () => Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (_) => const MyBookingsScreen(),
@@ -2063,38 +2173,38 @@ class _FooterState extends State<_Footer> with SingleTickerProviderStateMixin {
                       const SizedBox(width: 90),
                       Expanded(
                         child: _NavItem(
-                            Icons.account_balance_wallet_outlined, 'Wallet',
-                            onTap: () => ScaffoldMessenger.of(context)
-                                .showSnackBar(const SnackBar(
-                                    content: Text('Wallet — coming soon')))),
+                          Icons.account_balance_wallet_outlined,
+                          AppConfigService.instance.label('bottom_wallet'),
+                          onTap: widget.onOpenWallet,
+                        ),
                       ),
                       Expanded(
-                          child: _NavItem(
-                              Icons.person_outline_rounded, 'Profile',
+                          child: _NavItem(Icons.person_outline_rounded,
+                              AppConfigService.instance.label('bottom_profile'),
                               onTap: widget.onOpenProfile)),
                     ],
                   ),
                 ),
               ),
-              // Centre "Products" button — droplet swells out of the circle
+              // Centre "Products" button Ã¢â‚¬â€ droplet swells out of the circle
               Positioned(
                 top: 0,
                 child: GestureDetector(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const BulkOrderFormScreen(),
+                      builder: (_) => BulkOrderFormScreen(),
                     ),
                   ),
                   child: Container(
                     height: 82,
                     width: 82,
                     decoration: BoxDecoration(
-                      color: AppColors.brand,
+                      color: AppColors.liveBrand,
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 3),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.brand.withValues(alpha: 0.4),
+                          color: AppColors.liveBrand.withValues(alpha: 0.4),
                           blurRadius: 14,
                           offset: const Offset(0, 6),
                         ),
@@ -2113,10 +2223,12 @@ class _FooterState extends State<_Footer> with SingleTickerProviderStateMixin {
                                 height: 30),
                           ),
                         ),
-                        const Positioned(
+                        Positioned(
                           bottom: 16,
-                          child: Text('Products',
-                              style: TextStyle(
+                          child: Text(
+                              AppConfigService.instance
+                                  .label('bottom_products'),
+                              style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600)),
@@ -2143,7 +2255,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppColors.brand : const Color(0xFF5B6472);
+    final color = active ? AppColors.liveBrand : Color(0xFF5B6472);
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,

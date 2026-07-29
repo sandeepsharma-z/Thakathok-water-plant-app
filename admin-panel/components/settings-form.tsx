@@ -198,7 +198,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           Icon={CreditCard}
           defaultValue={settings.razorpay_key_id}
           placeholder="rzp_live_xxxxxxxxxxxx"
-          hint="From your Razorpay Dashboard → Settings → API Keys. Used to collect the 30% online advance."
+          hint="From your Razorpay Dashboard → Settings → API Keys. Used to collect the configured online advance."
         />
         <TextField
           name="razorpay_key_secret"
@@ -228,7 +228,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         submit new templates.
       </p>
 
-      <div className="mt-4 grid gap-5 lg:grid-cols-3">
+      <div className="mt-4 grid gap-5 lg:grid-cols-2">
         <TextField
           name="sms_template_order"
           label="Order Confirmation"
@@ -252,6 +252,14 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           defaultValue={settings.sms_template_dues}
           placeholder="1207178316198620329"
           hint="Sent to remind about the balance."
+        />
+        <TextField
+          name="sms_template_cash_alert"
+          label="Cash Booking Owner Alert"
+          Icon={MessageSquareText}
+          defaultValue={settings.sms_template_cash_alert}
+          placeholder="Approved Fast2SMS DLT template ID"
+          hint="Sent to the Contact / WhatsApp number when a new cash booking is placed."
         />
       </div>
 
