@@ -26,6 +26,60 @@ Deno.serve(async(req)=>{
     if(!isAdmin)return json({error:"Admin access required"},403);
 
     const input=await req.json();
+    const action=String(input.action??"create");
+    if(action!=="create"){
+      const staffId=String(input.staff_id??"");
+      const {data:staff}=await admin.from("delivery_staff").select("*").eq("id",staffId).is("archived_at",null).maybeSingle();
+      if(!staff)return json({error:"Delivery staff account not found."},404);
+
+      if(action==="update"){
+        const name=String(input.name??"").trim();
+        const mobile=digits(input.mobile);
+        const email=String(input.email??"").trim().toLowerCase();
+        if(name.length<2||mobile.length!==10||!email.includes("@")){
+          return json({error:"Enter a valid name, email and 10-digit mobile."},400);
+        }
+        if(!staff.user_id)return json({error:"This staff login has already been deleted."},409);
+        const {error:authError}=await admin.auth.admin.updateUserById(staff.user_id,{
+          email,email_confirm:true,user_metadata:{name,mobile,role:"delivery_staff"},
+        });
+        if(authError)return json({error:authError.message},409);
+        const {error:updateError}=await admin.from("delivery_staff").update({
+          name,mobile,email,updated_at:new Date().toISOString(),
+        }).eq("id",staff.id);
+        if(updateError)return json({error:updateError.message},409);
+        return json({ok:true});
+      }
+
+      if(action==="reset_password"){
+        const password=String(input.password??"");
+        if(password.length<8)return json({error:"Password must contain at least 8 characters."},400);
+        if(!staff.user_id)return json({error:"This staff login has already been deleted."},409);
+        const {error}=await admin.auth.admin.updateUserById(staff.user_id,{password});
+        if(error)return json({error:error.message},409);
+        return json({ok:true});
+      }
+
+      if(action==="delete"){
+        const {count}=await admin.from("bookings").select("id",{count:"exact",head:true})
+          .eq("assigned_staff_id",staff.id).in("status",["pending","confirmed"]);
+        if((count??0)>0)return json({
+          error:"Reassign or complete this staff member's active orders before deleting the login.",
+        },409);
+        if(staff.user_id){
+          const {error}=await admin.auth.admin.deleteUser(staff.user_id);
+          if(error)return json({error:error.message},409);
+        }
+        const {error}=await admin.from("delivery_staff").update({
+          enabled:false,email:null,mobile:`deleted-${staff.id}`,
+          archived_at:new Date().toISOString(),updated_at:new Date().toISOString(),
+        }).eq("id",staff.id);
+        if(error)return json({error:error.message},409);
+        return json({ok:true});
+      }
+      return json({error:"Unsupported action."},400);
+    }
+
     const name=String(input.name??"").trim();
     const mobile=digits(input.mobile);
     const email=String(input.email??"").trim().toLowerCase();

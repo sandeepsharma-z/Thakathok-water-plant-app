@@ -20,6 +20,7 @@ export async function createDeliveryStaff(
   try{
     const db=await adminClient();
     const{data,error}=await db.functions.invoke("manage-delivery-staff",{body:{
+      action:"create",
       name:String(form.get("name")??"").trim(),
       email:String(form.get("email")??"").trim().toLowerCase(),
       mobile:String(form.get("mobile")??"").replace(/\D/g,""),
@@ -31,6 +32,49 @@ export async function createDeliveryStaff(
   }catch(error){
     return{error:error instanceof Error?error.message:"Could not create staff."};
   }
+}
+
+async function manageStaff(body:Record<string,unknown>,success:string):Promise<StaffActionState>{
+  try{
+    const db=await adminClient();
+    const{data,error}=await db.functions.invoke("manage-delivery-staff",{body});
+    if(error||data?.error)return{error:data?.error??"Could not update delivery staff."};
+    revalidatePath("/delivery-staff");
+    return{ok:success};
+  }catch(error){
+    return{error:error instanceof Error?error.message:"Could not update staff."};
+  }
+}
+
+export async function updateDeliveryStaff(
+  _previous:StaffActionState,form:FormData,
+):Promise<StaffActionState>{
+  return manageStaff({
+    action:"update",staff_id:String(form.get("staff_id")??""),
+    name:String(form.get("name")??"").trim(),
+    email:String(form.get("email")??"").trim().toLowerCase(),
+    mobile:String(form.get("mobile")??"").replace(/\D/g,""),
+  },"Staff details updated.");
+}
+
+export async function resetDeliveryStaffPassword(
+  _previous:StaffActionState,form:FormData,
+):Promise<StaffActionState>{
+  return manageStaff({
+    action:"reset_password",staff_id:String(form.get("staff_id")??""),
+    password:String(form.get("password")??""),
+  },"Staff password reset successfully.");
+}
+
+export async function deleteDeliveryStaff(
+  _previous:StaffActionState,form:FormData,
+):Promise<StaffActionState>{
+  if(String(form.get("confirmation")??"").trim().toUpperCase()!=="DELETE"){
+    return{error:"Type DELETE to confirm account removal."};
+  }
+  return manageStaff({
+    action:"delete",staff_id:String(form.get("staff_id")??""),
+  },"Staff login deleted.");
 }
 
 export async function toggleDeliveryStaff(form:FormData){

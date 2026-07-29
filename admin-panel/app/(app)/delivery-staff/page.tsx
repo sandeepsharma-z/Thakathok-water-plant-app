@@ -1,5 +1,6 @@
 import {Camera,ExternalLink,FileSignature,IndianRupee,Mail,PackageCheck,Phone,Truck,UserPlus} from "lucide-react";
 import {DeliveryStaffCreateForm} from "@/components/delivery-staff-create-form";
+import {DeliveryStaffManager} from "@/components/delivery-staff-manager";
 import {PageHead} from "@/components/management-ui";
 import {Card,EmptyState,StatTile} from "@/components/ui";
 import {createClient} from "@/lib/supabase/server";
@@ -10,7 +11,7 @@ export default async function DeliveryStaffPage(){
   const panelUrl=process.env.NEXT_PUBLIC_DELIVERY_PANEL_URL??"https://thakathok-delivery.vercel.app";
   const db=await createClient();
   const[{data:staff},{data:records}]=await Promise.all([
-    db.from("delivery_staff").select("*").order("created_at"),
+    db.from("delivery_staff").select("*").is("archived_at",null).order("created_at"),
     db.from("delivery_records").select("*,bookings(booking_code,customer_name,mobile),delivery_staff(name)").order("delivered_at",{ascending:false}).limit(50),
   ]);
   const rows=staff??[];
@@ -44,6 +45,7 @@ export default async function DeliveryStaffPage(){
             <input type="hidden" name="id" value={person.id}/><input type="hidden" name="enabled" value={String(!person.enabled)}/>
             <button className={`w-full rounded-xl border px-4 py-2.5 text-[12px] font-bold ${person.enabled?"border-rose-200 text-danger hover:bg-danger-bg":"border-emerald-200 text-ok hover:bg-ok-bg"}`}>{person.enabled?"Disable login":"Enable login"}</button>
           </form>
+          <DeliveryStaffManager staff={{id:person.id,name:person.name,email:person.email,mobile:person.mobile}}/>
         </Card>)}
     </div>
     <Card className="mt-5 overflow-hidden">
