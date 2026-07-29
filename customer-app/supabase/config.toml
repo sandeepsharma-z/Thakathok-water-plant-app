@@ -1,0 +1,7 @@
+project_id = "xmxhalhogtottjjkbpme"
+
+[functions.manage-delivery-staff]
+verify_jwt = false
+
+[functions.staff-delivery-sms]
+verify_jwt = false
