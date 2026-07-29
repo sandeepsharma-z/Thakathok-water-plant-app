@@ -31,6 +31,9 @@ export interface Booking {
   offer_discount_percent: number;
   discount_amount: number;
   status: BookingStatus;
+  cancellation_reason: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
   created_at: string;
 }
 

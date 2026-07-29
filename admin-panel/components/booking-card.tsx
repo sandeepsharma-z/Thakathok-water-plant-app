@@ -12,7 +12,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
@@ -89,6 +89,7 @@ export function BookingCard({
 
   const isPending = b.status === "pending";
   const isConfirmed = b.status === "confirmed";
+  const [showCancel, setShowCancel] = useState(false);
   const isCash = b.payment_method === "cash";
   const whatsappNumber = b.mobile.replace(/\D/g, "").slice(-10);
   const whatsappMessage = encodeURIComponent(
@@ -179,14 +180,13 @@ export function BookingCard({
 
         {isPending ? (
           <div className="flex flex-wrap items-center gap-2">
-            <form action={cancelAction}>
-              <input type="hidden" name="id" value={b.id} />
-              <ActionButton
-                label="Cancel"
-                tone="ghost"
-                icon={<X className="h-4 w-4" />}
-              />
-            </form>
+            <button
+              type="button"
+              onClick={() => setShowCancel(true)}
+              className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-line px-4 text-[12.5px] font-bold text-ink-body transition hover:border-danger/30 hover:bg-danger-bg hover:text-danger"
+            >
+              <X className="h-4 w-4" /> Cancel
+            </button>
             <form action={confirmAction}>
               <input type="hidden" name="id" value={b.id} />
               <ActionButton
@@ -198,14 +198,23 @@ export function BookingCard({
           </div>
         ) : null}
         {isConfirmed ? (
-          <form action={deliveryAction}>
-            <input type="hidden" name="id" value={b.id} />
-            <ActionButton
-              label="Mark as Delivered"
-              tone="brand"
-              icon={<Truck className="h-4 w-4" />}
-            />
-          </form>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCancel(true)}
+              className="inline-flex h-10 items-center gap-1.5 rounded-2xl border border-danger/25 px-4 text-[12.5px] font-bold text-danger transition hover:bg-danger-bg"
+            >
+              <X className="h-4 w-4" /> Cancel Booking
+            </button>
+            <form action={deliveryAction}>
+              <input type="hidden" name="id" value={b.id} />
+              <ActionButton
+                label="Mark as Delivered"
+                tone="brand"
+                icon={<Truck className="h-4 w-4" />}
+              />
+            </form>
+          </div>
         ) : null}
         {b.status === "delivered" && !b.all_done_at ? (
           <form action={allDoneAction}>
@@ -247,6 +256,76 @@ export function BookingCard({
         <p className="mt-3 pl-2 text-[12px] font-semibold text-ok">
           {success}
         </p>
+      ) : null}
+      {b.status === "cancelled" && b.cancellation_reason ? (
+        <p className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-xl bg-danger-bg px-3 py-1.5 text-[11.5px] font-semibold text-danger">
+          <X className="h-3.5 w-3.5" />
+          Cancelled: {b.cancellation_reason}
+        </p>
+      ) : null}
+      {showCancel ? (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-[#07182f]/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[28px] border border-line bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-extrabold text-ink">
+                  Cancel {b.booking_code}?
+                </h3>
+                <p className="mt-1 text-[12px] leading-5 text-ink-muted">
+                  {isConfirmed
+                    ? `The received advance of ${rupees(b.advance)} remains recorded and non-refundable. Reserved cans and the booking date will be released.`
+                    : "This pending enquiry will be cancelled."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCancel(false)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-canvas text-ink-muted"
+                aria-label="Close cancellation dialog"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <form
+              action={cancelAction}
+              onSubmit={() => setShowCancel(false)}
+              className="mt-5 space-y-3"
+            >
+              <input type="hidden" name="id" value={b.id} />
+              <label className="block text-[12px] font-bold text-ink">
+                Cancellation reason
+                <select
+                  name="reason"
+                  required
+                  defaultValue=""
+                  className="mt-2 h-11 w-full rounded-xl border border-line bg-canvas px-3 text-[12px] outline-none focus:border-brand"
+                >
+                  <option value="" disabled>Select a reason</option>
+                  <option>Customer requested cancellation</option>
+                  <option>Plant unable to fulfil</option>
+                  <option>Duplicate or incorrect booking</option>
+                  <option>Payment not received</option>
+                  <option>Other operational reason</option>
+                </select>
+              </label>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCancel(false)}
+                  className="h-10 rounded-xl border border-line px-4 text-[12px] font-bold text-ink-body"
+                >
+                  Keep Booking
+                </button>
+                <button
+                  type="submit"
+                  className="h-10 rounded-xl bg-danger px-4 text-[12px] font-extrabold text-white"
+                >
+                  Confirm Cancellation
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       ) : null}
     </motion.article>
   );

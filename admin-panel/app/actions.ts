@@ -287,21 +287,37 @@ export async function cancelBooking(
   formData: FormData,
 ): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
   if (!id) return { error: "Missing booking." };
+  if (reason.length < 3) return { error: "Enter a cancellation reason." };
 
   try {
     const supabase = await requireAdmin();
-    const { error } = await supabase
-      .from("bookings")
-      .update({ status: "cancelled" })
-      .eq("id", id);
-    if (error) throw error;
+    const { data, error } = await supabase.rpc("cancel_booking_by_admin", {
+      p_booking_id: id,
+      p_reason: reason,
+    });
+    if (error) {
+      const message = error.message.includes("CANCELLATION_NOT_ALLOWED")
+        ? "Only pending or confirmed bookings can be cancelled."
+        : error.message.includes("BOOKING_NOT_FOUND")
+          ? "Booking not found."
+          : "Could not cancel this booking.";
+      return { error: message };
+    }
+    const result = data as {
+      already_cancelled?: boolean;
+      advance_retained?: number;
+    } | null;
+    revalidatePath("/", "layout");
+    return result?.already_cancelled
+      ? { ok: "This booking is already cancelled." }
+      : {
+          ok: `Booking cancelled. Advance record of ₹${result?.advance_retained ?? 0} was preserved.`,
+        };
   } catch {
-    return { error: "Could not cancel. Please try again." };
+    return { error: "Could not cancel this booking." };
   }
-
-  revalidatePath("/", "layout");
-  return { ok: "Booking cancelled." };
 }
 
 /** Save/edit a customer's name & note (keyed by mobile). */
