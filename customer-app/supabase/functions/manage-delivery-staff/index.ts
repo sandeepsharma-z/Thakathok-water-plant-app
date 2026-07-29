@@ -27,6 +27,34 @@ Deno.serve(async(req)=>{
 
     const input=await req.json();
     const action=String(input.action??"create");
+    if(action==="repair_orphans"){
+      let page=1;
+      let repaired=0;
+      while(true){
+        const {data,error}=await admin.auth.admin.listUsers({page,perPage:1000});
+        if(error)throw error;
+        const staffUsers=data.users.filter((candidate)=>
+          candidate.user_metadata?.role==="delivery_staff"
+        );
+        for(const candidate of staffUsers){
+          const {data:existing}=await admin.from("delivery_staff")
+            .select("id").eq("user_id",candidate.id).maybeSingle();
+          if(existing)continue;
+          const metadata=candidate.user_metadata??{};
+          const orphanName=String(metadata.name??"").trim();
+          const orphanMobile=digits(metadata.mobile);
+          const orphanEmail=String(candidate.email??"").trim().toLowerCase();
+          if(orphanName.length<2||orphanMobile.length!==10||!orphanEmail.includes("@"))continue;
+          const {error:insertError}=await admin.from("delivery_staff").insert({
+            user_id:candidate.id,name:orphanName,mobile:orphanMobile,email:orphanEmail,
+          });
+          if(!insertError)repaired++;
+        }
+        if(data.users.length<1000)break;
+        page++;
+      }
+      return json({ok:true,repaired});
+    }
     if(action!=="create"){
       const staffId=String(input.staff_id??"");
       const {data:staff}=await admin.from("delivery_staff").select("*").eq("id",staffId).is("archived_at",null).maybeSingle();
@@ -87,11 +115,36 @@ Deno.serve(async(req)=>{
     if(name.length<2||mobile.length!==10||!email.includes("@")||password.length<8){
       return json({error:"Enter a valid name, email, 10-digit mobile and 8+ character password."},400);
     }
-    const {data:created,error:createError}=await admin.auth.admin.createUser({
+    let {data:created,error:createError}=await admin.auth.admin.createUser({
       email,password,email_confirm:true,
       user_metadata:{name,mobile,role:"delivery_staff"},
     });
-    if(createError)return json({error:createError.message},409);
+    if(createError&&createError.message.toLowerCase().includes("already")){
+      const {data:list,error:listError}=await admin.auth.admin.listUsers({page:1,perPage:1000});
+      if(listError)throw listError;
+      const existing=list.users.find((candidate)=>
+        String(candidate.email??"").toLowerCase()===email
+      );
+      if(existing?.user_metadata?.role==="delivery_staff"){
+        const {data:profile}=await admin.from("delivery_staff")
+          .select("id").eq("user_id",existing.id).maybeSingle();
+        if(profile)return json({error:"A delivery staff account with this email already exists."},409);
+        const {data:recovered,error:recoverError}=await admin.auth.admin.updateUserById(
+          existing.id,{password,email_confirm:true,user_metadata:{name,mobile,role:"delivery_staff"}},
+        );
+        if(recoverError)return json({error:recoverError.message},409);
+        created={user:recovered.user};
+        createError=null;
+      }
+    }
+    if(createError||!created?.user){
+      const duplicate=createError?.message.toLowerCase().includes("already");
+      return json({
+        error:duplicate
+          ?"This email is already used by another admin or customer login. Use a different email for delivery staff."
+          :createError?.message??"Could not create login.",
+      },409);
+    }
     const {error:profileError}=await admin.from("delivery_staff").insert({
       user_id:created.user.id,name,mobile,email,
     });
