@@ -28,6 +28,7 @@ out/
 .pub-cache/
 .pub/
 build/
+**/supabase/.temp/
 
 # logs
 *.log

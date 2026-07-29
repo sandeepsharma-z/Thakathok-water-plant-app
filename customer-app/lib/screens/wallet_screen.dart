@@ -79,7 +79,7 @@ class _WalletScreenState extends State<WalletScreen> {
   Future<void> _addMoney() async {
     final amount = int.tryParse(_amount.text.trim());
     if (amount == null || amount < 10 || amount > 100000) {
-      setState(() => _error = 'Enter an amount between â‚¹10 and â‚¹1,00,000.');
+      setState(() => _error = 'Enter an amount between ₹10 and ₹1,00,000.');
       return;
     }
     setState(() {
@@ -221,7 +221,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         ),
                         const SizedBox(height: 7),
                         Text(
-                          'â‚¹$_balance.00',
+                          '₹$_balance.00',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 32,
@@ -259,7 +259,7 @@ class _WalletScreenState extends State<WalletScreen> {
                             LengthLimitingTextInputFormatter(6),
                           ],
                           decoration: InputDecoration(
-                            prefixText: 'â‚¹ ',
+                            prefixText: '₹ ',
                             hintText: 'Enter amount',
                             filled: true,
                             fillColor: const Color(0xFFF5F9FF),
@@ -276,7 +276,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           children: [100, 500, 1000, 2000]
                               .map(
                                 (value) => ActionChip(
-                                  label: Text('â‚¹$value'),
+                                  label: Text('₹$value'),
                                   onPressed: () =>
                                       _amount.text = value.toString(),
                                 ),
@@ -401,7 +401,7 @@ class _TransactionTile extends StatelessWidget {
             ),
           ),
           Text(
-            '${credit ? '+' : '-'}â‚¹${transaction['amount']}',
+            '${credit ? '+' : '-'}₹${transaction['amount']}',
             style: TextStyle(
               color: credit ? const Color(0xFF169B62) : const Color(0xFFD32020),
               fontWeight: FontWeight.w800,

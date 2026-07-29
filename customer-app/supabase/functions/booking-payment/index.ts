@@ -11,6 +11,11 @@ Deno.serve(async(request)=>{
  try{
   const db=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const input=await request.json(); const action=String(input.action??"");
+  const sessionMobile=digits(input.mobile),sessionToken=String(input.session_token??"");
+  if(!/^\d{10}$/.test(sessionMobile)||sessionToken.length<32)return json({error:"Please login again."},401);
+  const tokenHash=hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(sessionToken)));
+  const {data:session}=await db.from("customer_sessions").select("mobile").eq("token_hash",tokenHash).eq("mobile",sessionMobile).gt("expires_at",new Date().toISOString()).maybeSingle();
+  if(!session)return json({error:"Your session has expired. Please login again."},401);
   const {data:settings,error:settingsError}=await db.from("settings").select("per_can_rate,delivery_charge,delivery_free_threshold,free_delivery_village,razorpay_key_id,razorpay_key_secret,offer_enabled,offer_code,offer_discount_percent,offer_min_subtotal,plant_name,advance_percent").eq("id",1).single();
   if(settingsError)throw settingsError;
   const keyId=String(settings.razorpay_key_id??"").trim(),secret=String(settings.razorpay_key_secret??"").trim();
@@ -18,7 +23,7 @@ Deno.serve(async(request)=>{
   const basic=btoa(`${keyId}:${secret}`);
 
   if(action==="create"){
-   const mobile=digits(input.mobile),cans=Number(input.cans),name=String(input.name??"").trim(),eventType=String(input.event_type??"").trim(),village=String(input.village??"").trim(),address=String(input.address??"").trim(),eventDate=String(input.event_date??""),eventTime=String(input.event_time??"").trim();
+   const mobile=sessionMobile,cans=Number(input.cans),name=String(input.name??"").trim(),eventType=String(input.event_type??"").trim(),village=String(input.village??"").trim(),address=String(input.address??"").trim(),eventDate=String(input.event_date??""),eventTime=String(input.event_time??"").trim();
    if(!/^\d{10}$/.test(mobile)||!name||!eventType||!address||!eventTime||!Number.isInteger(cans)||cans<1||cans>10000||!/^\d{4}-\d{2}-\d{2}$/.test(eventDate))return json({error:"Invalid booking details."},400);
    const {data:eligibility,error:eligibilityError}=await db.rpc("get_customer_order_eligibility",{p_mobile:mobile});
    if(eligibilityError)throw eligibilityError;
@@ -50,7 +55,7 @@ Deno.serve(async(request)=>{
   if(action==="verify"){
    const orderId=String(input.order_id??""),paymentId=String(input.payment_id??""),signature=String(input.signature??"");
    if(!orderId||!paymentId||!signature)return json({error:"Incomplete payment response."},400);
-   const {data:bound}=await db.from("booking_payment_orders").select("amount,status").eq("razorpay_order_id",orderId).maybeSingle();if(!bound)return json({error:"Secure payment order not found."},404);
+   const {data:bound}=await db.from("booking_payment_orders").select("amount,status,mobile").eq("razorpay_order_id",orderId).eq("mobile",sessionMobile).maybeSingle();if(!bound)return json({error:"Secure payment order not found."},404);
    if(await hmac(`${orderId}|${paymentId}`,secret)!==signature.toLowerCase())return json({error:"Payment signature verification failed."},400);
    const [paymentResponse,orderResponse]=await Promise.all([
     fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}`,{headers:{Authorization:`Basic ${basic}`}}),

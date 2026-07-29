@@ -4,13 +4,14 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/booking_service.dart';
+import '../services/auth_service.dart';
 import '../services/profile_store.dart';
 import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dotted_loader.dart';
 import 'bulk_order_form_screen.dart' show kVillages;
 
-/// Customer profile â€” saved on this device (no login needed). Starts empty
+/// Customer profile — saved on this device (no login needed). Starts empty
 /// for a new user; they fill it once and it persists across app restarts.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -49,7 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _village = p.village;
       }
       _loaded = true;
-      // A brand-new user has nothing saved â€” drop them straight into editing.
+      // A brand-new user has nothing saved — drop them straight into editing.
       _editing = p.isEmpty;
     });
   }
@@ -65,23 +66,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _save() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final name = _name.text.trim();
-    final mobile = _mobile.text.trim();
+    final mobile =
+        await AuthService.instance.currentMobile() ?? _mobile.text.trim();
     final address = _address.text.trim();
-    // 1) Save on-device so it persists without a login.
-    await ProfileStore.instance.save(CustomerProfile(
-      name: name,
-      mobile: mobile,
-      village: _village,
-      address: address,
-      avatarUrl: _avatarUrl,
-    ));
-    // 2) Sync to Supabase so the admin sees this customer (best-effort).
-    await BookingService.instance.upsertCustomer(
-      mobile: mobile,
-      name: name,
-      village: _village,
-      address: address,
-    );
+    try {
+      // Validate the authenticated session and persist server-side first.
+      await BookingService.instance.upsertCustomer(
+        mobile: mobile,
+        name: name,
+        village: _village,
+        address: address,
+      );
+      await ProfileStore.instance.save(CustomerProfile(
+        name: name,
+        mobile: mobile,
+        village: _village,
+        address: address,
+        avatarUrl: _avatarUrl,
+      ));
+    } catch (error) {
+      if (!mounted) return;
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
+      return;
+    }
     if (!mounted) return;
     setState(() => _editing = false);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -443,7 +450,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const _Label('Mobile Number'),
                   TextFormField(
                     controller: _mobile,
-                    enabled: _editing,
+                    enabled: false,
                     keyboardType: TextInputType.phone,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,

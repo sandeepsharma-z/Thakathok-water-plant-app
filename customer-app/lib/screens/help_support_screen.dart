@@ -125,7 +125,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           const SizedBox(height: 20),
           Center(
             child: Text(
-              '$kPlantName Â· ThakaThok',
+              '$kPlantName · ThakaThok',
               style: const TextStyle(fontSize: 11.5, color: AppColors.hint),
             ),
           ),

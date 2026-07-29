@@ -1,52 +1,28 @@
-# Ownership & Handover Terms
+# Ownership and Handover
 
-## GitHub Ownership
+The client should retain ownership of:
 
-The GitHub repository will be created by client side.
+- Source repository and production deployment.
+- Supabase project and database backups.
+- Vercel project/domain.
+- Razorpay and Fast2SMS/DLT accounts.
+- Google Play Console account.
+- Android upload keystore and its password.
 
-Solvinex Team will work as collaborator during development.
+## Handover items
 
-The project source code will be maintained in the client-owned GitHub repository.
+- Complete source code.
+- Database migrations and Edge Functions.
+- Admin, customer and delivery-staff operating notes.
+- Signed APK/AAB as applicable.
+- Environment-variable inventory (values transferred privately).
+- Production verification walkthrough.
 
-## Source Code Handover
+## Secret handling
 
-Final complete source code handover and AWS deployment will be completed after the final 30% payment is cleared.
+Payment secrets, service-role keys, access tokens and signing passwords must never
+be committed or sent in public chat. The customer app contains only the Supabase
+publishable key. Client-owned external-service secrets stay server-side.
 
-## Repository Workflow
-
-Code can be pushed regularly for transparency and progress tracking.
-
-The initial setup commit is only for project setup and repository confirmation.
-
-Full development will officially start after advance payment confirmation/UTR receipt and required access/API details are shared by the client side.
-
-Any timeline, milestone delivery period, weekly review cycle, and active development work will begin only after the advance payment is received and confirmed.
-
-## Hosting & Accounts
-
-The application will be deployed on the client-owned AWS account as discussed.
-
-Third-party accounts such as SMS/OTP provider, payment gateway, maps, Play Console, and other services can remain under client ownership.
-
-Third-party bills will be paid directly by the client to the respective provider.
-
-## Final Handover Items
-
-At the time of final handover, the following will be provided:
-
-- Source code
-- Database schema/setup details
-- Admin access details
-- APK/AAB files where applicable
-- Deployment notes
-- Basic documentation
-- Walkthrough/training support
-- 30 days bug support for agreed scope
-
-## No Vendor Lock-In
-
-The project will be developed using standard technologies so the client can hire another developer later if required.
-
-## Final Handover Condition
-
-Final ownership transfer, production handover, AWS deployment, and complete access documentation will be completed after full payment clearance as per agreed milestones.
+The Android upload keystore must be backed up securely. Losing it can prevent
+publishing updates under the same application identity.

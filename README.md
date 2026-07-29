@@ -1,99 +1,31 @@
-# Thaka Thok Water Delivery App
+# ThakaThok Water Delivery
 
-README Version: v1.2
+Production-oriented water-delivery system for Mahalakshmi Water Plant.
 
-Thaka Thok Water Delivery App is a complete water plant delivery management system developed for managing customer orders, pending payments, empty jar/can returns, delivery staff updates, admin approval, and delivery workflow in one centralized platform.
+## Modules
 
-## Project Modules
+- `customer-app` — Flutter Android app for mobile/password accounts, profile, ordering, payments, wallet, notifications, dues and booking history.
+- `admin-panel` — Next.js dashboard for bookings, customers, delivery, inventory, villages, products, content, finance, reports and activity.
+- Delivery staff panel — `/staff/login` and `/staff` inside the admin deployment, with assigned orders, delivery proof, collections and empty-can returns.
+- `customer-app/supabase` — database migrations and Supabase Edge Functions.
 
-1. Customer Mobile App
-2. Admin Dashboard
-3. Delivery Staff Panel
-4. Backend API
-5. Database Setup
-6. Deployment Setup
-7. Documentation & Handover
+## Implemented business flow
 
-## Main Features
+1. Customer creates an account with mobile number and password.
+2. Customer submits an eligible order for an available date.
+3. Cash orders await confirmation; verified online/wallet payments confirm securely.
+4. Admin can assign a confirmed order to enabled delivery staff.
+5. Staff records delivery, cash collected, returned cans and optional proof.
+6. Admin clears remaining dues/cans with `All Done`; new orders remain blocked until prior liabilities are cleared.
 
-### Customer App
+Customer-owned records are accessed through an opaque session token and the
+`customer-api` Edge Function. Public mobile-number-only access is disabled.
 
-- Mobile OTP login
-- Customer profile management
-- Water jar/can order placement
-- Order status tracking
-- Pending payment visibility
-- Pending empty jar/can visibility
-- Next order restriction if previous dues or cans are pending
+## External services
 
-### Admin Dashboard
+- Razorpay is integrated; real-money testing requires the client's Live keys.
+- Fast2SMS/DLT triggers are integrated; delivery depends on the client's approved account, balance and template configuration.
+- Closed-app push is intentionally not included. Notifications work inside the app without Firebase.
 
-- Customer management
-- Delivery area management
-- Product/rate management
-- Order management
-- Delivery staff management
-- Pending payment tracking
-- Empty jar/can tracking
-- Monthly dues report
-- Customer-wise order/payment history
-- Admin "All Done" approval process
-
-### Delivery Staff Panel
-
-- Delivery staff login
-- Assigned order visibility
-- Delivery status updates
-- Payment collection update
-- Empty jar/can return update
-- Route/order visibility
-- Daily delivery workflow
-
-## Phase 1 Aadhaar Number Duplicate Check
-
-- Aadhaar number-based duplicate check and pending dues tracking for water delivery
-- No Aadhaar eKYC/API integration involved
-- If a customer registers again with another mobile number but the same Aadhaar number, previous pending dues and empty can records will remain linked
-- Customers with pending dues or pending empty cans cannot place another order until previous records are cleared and verified
-- Codebase will be multi-branch ready. Future branches can be added from the Admin Panel without code changes for the standard branch setup.
-- Basic branch creation and management will be planned in the code structure.
-- Any future advanced branch-specific custom feature, separate workflow, or major customization will be handled separately if required.
-
-## Technology Stack
-
-- Mobile App: Flutter
-- Admin Dashboard: Web-based dashboard
-- Backend/API: Secure backend architecture
-- Database: Structured database for customers, orders, payments, cans, staff, and reports
-- Hosting/Deployment: Client-owned AWS account as discussed
-- Repository: Client-owned GitHub repository
-
-## Milestone 1 Target
-
-The first testable version will target Customer Login, Order Flow, SMS/OTP setup, Branch Filter, and Combined Reports within 7-10 working days from payment confirmation and required access/API details shared by the client side.
-
-## Development Start Condition
-
-The official project development start date will be counted from the date of advance payment confirmation/UTR receipt and required access/API details shared by the client side.
-
-Any timeline, milestone delivery period, weekly review cycle, and active development work will begin only after the advance payment is received and confirmed.
-
-## Review Process
-
-Weekly review calls will be planned every Friday at 4:00 PM once development starts.
-
-## SMS/OTP DLT Setup
-
-Jio DLT can be used for SMS/OTP configuration with Fast2SMS after approval. The required details from the client side are Entity ID, Header/Sender ID, and Template IDs.
-
-## Project Status
-
-Initial project setup and documentation commits have been created. Full development will officially start after advance payment confirmation/UTR receipt and required access/API details are shared by the client side.
-
-## Developed By
-
-Solvinex Team  
-Website: https://solvinex.com  
-Email: hello@solvinex.com  
-LinkedIn: https://www.linkedin.com/company/solvinex  
-Instagram: https://www.instagram.com/solvinex_com/
+See [setup notes](docs/setup-notes.md), [project scope](docs/project-scope.md) and
+[ownership/handover](docs/ownership-and-handover.md).

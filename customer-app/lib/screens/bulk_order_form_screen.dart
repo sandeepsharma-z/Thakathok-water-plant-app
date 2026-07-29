@@ -11,7 +11,7 @@ import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
 import 'payment_screen.dart';
 
-/// Per-can rate â€” admin-controlled, loaded live from settings at app start.
+/// Per-can rate — admin-controlled, loaded live from settings at app start.
 int get kPerCanRate => PlantConfig.instance.perCanRate;
 
 /// Delivery charge applied to orders under the free threshold (except the free
@@ -28,7 +28,7 @@ List<String> get kCanOptions => [
 
 List<String> get kVillages => PlantConfig.instance.villages;
 
-/// Screen 2 of the bulk-order flow â€” the enquiry form the customer fills in
+/// Screen 2 of the bulk-order flow — the enquiry form the customer fills in
 /// before paying the 30% advance.
 class BulkOrderFormScreen extends StatefulWidget {
   const BulkOrderFormScreen({
@@ -342,7 +342,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Per Can Rate'),
-                      _ReadOnlyBox('â‚¹ $kPerCanRate / Can'),
+                      _ReadOnlyBox('₹ $kPerCanRate / Can'),
                     ],
                   ),
                 ),
@@ -353,7 +353,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                     children: [
                       _FieldLabel('Total Amount'),
                       _ReadOnlyBox(
-                        _cans > 0 ? 'â‚¹ $_total' : 'â‚¹ 0',
+                        _cans > 0 ? '₹ $_total' : '₹ 0',
                         highlight: true,
                       ),
                     ],
@@ -461,7 +461,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                     Expanded(
                       child: Text(
                         'Orders under $kDeliveryFreeThreshold cans have a '
-                        'delivery charge (â‚¹$_deliveryCharge) for this village.',
+                        'delivery charge (₹$_deliveryCharge) for this village.',
                         style: const TextStyle(
                             fontSize: 11.5, color: Color(0xFF8A5200)),
                       ),
@@ -519,7 +519,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
   }
 }
 
-// â”€â”€ Shared field styling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Shared field styling ──────────────────────────────────────────────
 InputDecoration _inputDecoration(String hint) {
   return InputDecoration(
     hintText: hint,

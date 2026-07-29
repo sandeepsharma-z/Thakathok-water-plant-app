@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/order_details.dart';
+import 'customer_api_service.dart';
 
 /// Thin data layer over Supabase for settings + bookings.
 class BookingService {
@@ -69,11 +70,8 @@ class BookingService {
     String mobile,
   ) async {
     try {
-      final data = await _db.rpc(
-        'get_customer_order_eligibility',
-        params: {'p_mobile': mobile},
-      );
-      final result = Map<String, dynamic>.from(data as Map);
+      final data = await CustomerApiService.instance.call('eligibility');
+      final result = Map<String, dynamic>.from(data['eligibility'] as Map);
       return CustomerOrderEligibility(
         eligible: result['eligible'] == true,
         reason: '${result['reason'] ?? ''}',
@@ -119,44 +117,22 @@ class BookingService {
     required String status, // 'confirmed' | 'pending'
   }) async {
     final payload = {
-      'booking_code': order.bookingId,
-      'customer_name': order.name,
+      'name': order.name,
       'event_type': order.eventType,
       'cans': order.cans,
-      'per_can_rate': order.perCanRate,
-      'subtotal': order.subtotal,
-      'delivery_charge': order.deliveryCharge,
-      'grand_total': order.grandTotal,
-      'advance': order.advance,
-      'balance': order.balance,
       'village': order.village,
-      'mobile': order.mobile,
       'address': order.address,
       'event_date': _dateOnly(order.eventDate),
       'event_time': order.eventTimeLabel,
-      'payment_method': paymentMethod,
       'offer_code': order.offerCode,
-      'offer_discount_percent': order.offerDiscountPercent,
-      'discount_amount': order.discountAmount,
-      'status': status,
+      'expected_advance': order.advance,
     };
-    final inserted = await _db
-        .from('bookings')
-        .insert(payload)
-        .select('id, booking_code')
-        .single();
-    if (paymentMethod == 'cash') {
-      try {
-        await _db.functions.invoke(
-          'cash-booking-alert',
-          body: {'booking_id': inserted['id']},
-        );
-      } catch (_) {
-        // The booking is already saved. An alert failure must never duplicate
-        // or cancel the customer's order.
-      }
+    if (paymentMethod != 'cash' || status != 'pending') {
+      throw StateError('This booking must be finalized by secure payment.');
     }
-    return inserted['booking_code'] as String;
+    final result =
+        await CustomerApiService.instance.call('cash_booking', payload);
+    return '${result['booking_code']}';
   }
 
   /// Save/update the customer's profile in Supabase so the admin can see
@@ -170,18 +146,11 @@ class BookingService {
     String? avatarUrl,
   }) async {
     if (mobile.length != 10) return;
-    try {
-      await _db.from('customers').upsert({
-        'mobile': mobile,
-        'name': name,
-        'village': village,
-        'address': address,
-        if (avatarUrl != null) 'avatar_url': avatarUrl,
-        'updated_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'mobile');
-    } catch (_) {
-      // Ignore — profile is still saved locally on the device.
-    }
+    await CustomerApiService.instance.call('update_profile', {
+      'name': name,
+      'village': village,
+      'address': address,
+    });
   }
 
   /// Upload a customer-selected avatar and return its public URL.
@@ -190,65 +159,30 @@ class BookingService {
     required Uint8List bytes,
     required String extension,
   }) async {
-    final safeMobile = mobile.replaceAll(RegExp(r'\D'), '');
-    final safeExtension =
-        extension.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-    final path =
-        '$safeMobile/${DateTime.now().millisecondsSinceEpoch}.${safeExtension.isEmpty ? 'jpg' : safeExtension}';
-    await _db.storage.from('customer-avatars').uploadBinary(
-          path,
-          bytes,
-          fileOptions: const FileOptions(upsert: false),
-        );
-    return _db.storage.from('customer-avatars').getPublicUrl(path);
+    return CustomerApiService.instance.uploadAvatar(bytes, extension);
   }
 
   Future<void> updateCustomerAvatar({
     required String mobile,
     required String avatarUrl,
   }) async {
-    await _db.rpc('update_customer_avatar', params: {
-      'p_mobile': mobile,
-      'p_avatar_url': avatarUrl,
-    });
+    if (avatarUrl.isEmpty) {
+      await CustomerApiService.instance.call('remove_avatar');
+    }
   }
 
   /// Bookings for a given mobile number, newest first.
   Future<List<Map<String, dynamic>>> bookingsForMobile(String mobile) async {
-    final rows = await _db
-        .from('bookings')
-        .select()
-        .eq('mobile', mobile)
-        .order('created_at', ascending: false);
-    return List<Map<String, dynamic>>.from(rows);
+    final result = await CustomerApiService.instance.call('bookings');
+    return List<Map<String, dynamic>>.from(result['bookings'] as List);
   }
 
   Future<CustomerHomeSummary> customerHomeSummary(String mobile) async {
     if (mobile.length != 10) return const CustomerHomeSummary();
-    var walletBalance = 0;
-    try {
-      final customer = await _db
-          .from('customers')
-          .select('wallet_balance')
-          .eq('mobile', mobile)
-          .maybeSingle();
-      walletBalance =
-          (customer?['wallet_balance'] as num?)?.round() ?? walletBalance;
-    } catch (_) {
-      // Old schema fallback until wallet_balance migration is applied.
-    }
-
-    final bookings = await bookingsForMobile(mobile);
-    final pendingDues = bookings
-        .where((row) =>
-            row['status'] == 'confirmed' || row['status'] == 'delivered')
-        .fold<int>(
-          0,
-          (total, row) => total + ((row['balance'] as num?)?.round() ?? 0),
-        );
+    final result = await CustomerApiService.instance.call('summary');
     return CustomerHomeSummary(
-      walletBalance: walletBalance,
-      pendingDues: pendingDues,
+      walletBalance: (result['wallet_balance'] as num?)?.toInt() ?? 0,
+      pendingDues: (result['pending_dues'] as num?)?.toInt() ?? 0,
     );
   }
 

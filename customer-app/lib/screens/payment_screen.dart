@@ -15,7 +15,7 @@ import 'booking_confirmed_screen.dart';
 String get kPlantName => PlantConfig.instance.plantName;
 String get kPlantPhone => PlantConfig.instance.plantPhone;
 
-/// Screen 3 â€” order summary + 30% non-refundable advance with two payment
+/// Screen 3 — order summary + 30% non-refundable advance with two payment
 /// options (online instant-confirm, or cash manual-confirm).
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key, required this.order});
@@ -98,7 +98,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 20),
 
-          // â”€â”€ Order summary card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // ── Order summary card ──────────────────────────────────────
           Container(
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -116,21 +116,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         fontWeight: FontWeight.w700,
                         color: AppColors.liveBrand)),
                 const SizedBox(height: 14),
-                _row('${order.cans} Cans Ã— â‚¹${order.perCanRate}/Can',
-                    'â‚¹${order.subtotal}'),
+                _row('${order.cans} Cans × ₹${order.perCanRate}/Can',
+                    '₹${order.subtotal}'),
                 if (order.deliveryCharge > 0) ...[
                   const SizedBox(height: 8),
-                  _row('Delivery Charge', 'â‚¹${order.deliveryCharge}'),
+                  _row('Delivery Charge', '₹${order.deliveryCharge}'),
                 ],
                 if (order.hasDiscount) ...[
                   const SizedBox(height: 8),
                   _row(
                     'Offer ${order.offerCode} (${order.offerDiscountPercent}%)',
-                    '-Ã¢â€šÂ¹${order.discountAmount}',
+                    '-₹${order.discountAmount}',
                   ),
                 ],
                 const Divider(height: 22),
-                _row('Total', 'â‚¹${order.grandTotal}', bold: true),
+                _row('Total', '₹${order.grandTotal}', bold: true),
               ],
             ),
           ),
@@ -192,7 +192,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 if (order.hasDiscount) ...[
                   const SizedBox(height: 6),
                   Text(
-                    'You saved Ã¢â€šÂ¹${order.discountAmount} with ${order.offerCode}.',
+                    'You saved ₹${order.discountAmount} with ${order.offerCode}.',
                     style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
@@ -204,7 +204,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 18),
 
-          // â”€â”€ Non-refundable warning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // ── Non-refundable warning ──────────────────────────────────
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -217,7 +217,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'âš ï¸ ${config.advancePercent}% ${config.paymentText('advance_warning')}',
+                  '⚠️ ${config.advancePercent}% ${config.paymentText('advance_warning')}',
                   style: const TextStyle(
                     color: Color(0xFFD32020),
                     fontWeight: FontWeight.w800,
@@ -234,7 +234,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           const SizedBox(height: 16),
 
-          // â”€â”€ Advance / balance split â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // ── Advance / balance split ─────────────────────────────────
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -245,17 +245,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
             child: Column(
               children: [
                 _row('${config.advancePercent}% Advance to Confirm Booking',
-                    'â‚¹${order.advance}',
+                    '₹${order.advance}',
                     highlight: true, big: true),
                 const SizedBox(height: 10),
                 _row('Balance ${config.balancePercent}% (Cash on Delivery)',
-                    'â‚¹${order.balance}'),
+                    '₹${order.balance}'),
               ],
             ),
           ),
           const SizedBox(height: 26),
 
-          // â”€â”€ Option 1: Pay online â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // ── Option 1: Pay online ────────────────────────────────────
           SizedBox(
             height: 54,
             child: ElevatedButton(
@@ -273,10 +273,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('PAY â‚¹${order.advance} ONLINE',
+                  Text('PAY ₹${order.advance} ONLINE',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w700)),
-                  const Text('UPI â€¢ GPay â€¢ PhonePe',
+                  const Text('UPI • GPay • PhonePe',
                       style: TextStyle(
                           fontSize: 10.5, fontWeight: FontWeight.w400)),
                 ],
@@ -306,10 +306,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('PAY â‚¹${order.advance} FROM WALLET',
+                  Text('PAY ₹${order.advance} FROM WALLET',
                       style: const TextStyle(
                           fontSize: 14, fontWeight: FontWeight.w700)),
-                  Text('Available balance: â‚¹$_walletBalance',
+                  Text('Available balance: ₹$_walletBalance',
                       style: const TextStyle(
                           fontSize: 10.5, fontWeight: FontWeight.w400)),
                 ],
@@ -318,7 +318,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           SizedBox(height: 12),
 
-          // â”€â”€ Option 3: Pay cash â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          // ── Option 3: Pay cash ──────────────────────────────────────
           SizedBox(
             height: 54,
             child: OutlinedButton(
@@ -333,7 +333,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('PAY â‚¹${order.advance} CASH',
+                  Text('PAY ₹${order.advance} CASH',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w700)),
                   Text('to $kPlantName',
@@ -355,7 +355,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  // Online â†’ open Razorpay checkout for the 30% advance.
+  // Online → open Razorpay checkout for the 30% advance.
   Future<void> _applyOffer() async {
     final entered = _offerCode.text.trim().toUpperCase();
     if (entered.isEmpty) {
@@ -381,7 +381,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
     if (order.subtotal < settings.offerMinSubtotal) {
       _showOfferMessage(
-          'Minimum product subtotal is Ã¢â€šÂ¹${settings.offerMinSubtotal}.');
+          'Minimum product subtotal is ₹${settings.offerMinSubtotal}.');
       return;
     }
 
@@ -509,7 +509,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (_walletBalance < order.advance) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            'Insufficient wallet balance. Add â‚¹${order.advance - _walletBalance} more.'),
+            'Insufficient wallet balance. Add ₹${order.advance - _walletBalance} more.'),
       ));
       return;
     }
@@ -518,7 +518,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Pay from wallet?'),
         content: Text(
-          'â‚¹${order.advance} will be deducted from your wallet to confirm this booking.',
+          '₹${order.advance} will be deducted from your wallet to confirm this booking.',
         ),
         actions: [
           TextButton(
@@ -552,7 +552,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  // Cash â†’ show instructions; booking stays pending until admin confirms.
+  // Cash → show instructions; booking stays pending until admin confirms.
   void _payCash() {
     showModalBottomSheet(
       context: context,
@@ -654,7 +654,7 @@ class _CashInstructionsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final config = AppConfigService.instance;
     final replacements = {
-      'advance': 'â‚¹${order.advance}',
+      'advance': '₹${order.advance}',
       'plant_name': kPlantName,
       'plant_phone': kPlantPhone,
     };
@@ -700,7 +700,7 @@ class _CashInstructionsSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              'âš ï¸ ${config.paymentText('cash_notice')}',
+              '⚠️ ${config.paymentText('cash_notice')}',
               style: const TextStyle(
                   color: Color(0xFFD32020),
                   fontSize: 11.5,

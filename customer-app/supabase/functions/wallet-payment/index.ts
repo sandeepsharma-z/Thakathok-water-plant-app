@@ -42,6 +42,26 @@ Deno.serve(async (request) => {
     const input = await request.json();
     const action = String(input.action ?? "");
     const mobile = String(input.mobile ?? "").replace(/\D/g, "");
+    const sessionToken = String(input.session_token ?? "");
+    if (!/^\d{10}$/.test(mobile) || sessionToken.length < 32) {
+      return json({ error: "Please login again." }, 401);
+    }
+    const tokenHash = hex(
+      await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(sessionToken),
+      ),
+    );
+    const { data: session } = await db
+      .from("customer_sessions")
+      .select("mobile")
+      .eq("token_hash", tokenHash)
+      .eq("mobile", mobile)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+    if (!session) {
+      return json({ error: "Your session has expired. Please login again." }, 401);
+    }
 
     const { data: settings, error: settingsError } = await db
       .from("settings")
@@ -146,6 +166,7 @@ Deno.serve(async (request) => {
         .from("wallet_payment_orders")
         .select("*")
         .eq("razorpay_order_id", orderId)
+        .eq("mobile", mobile)
         .maybeSingle();
       if (!walletOrder) return json({ error: "Payment order not found." }, 404);
 

@@ -106,7 +106,7 @@ class ProductPackDetailsScreen extends StatelessWidget {
           _DetailCard(
             icon: Icons.currency_rupee_rounded,
             title: 'Current rate',
-            body: 'â‚¹$rate per can Â· controlled by Mahalakshmi Water Plant',
+            body: '₹$rate per can · controlled by Mahalakshmi Water Plant',
           ),
           const SizedBox(height: 12),
           _DetailCard(
@@ -140,21 +140,21 @@ class ProductPackDetailsScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _PriceRow(
-                    label: '${pack.cans} cans Ã— â‚¹$rate',
-                    value: 'â‚¹$total',
+                    label: '${pack.cans} cans × ₹$rate',
+                    value: '₹$total',
                     bold: true,
                   ),
                   const Divider(height: 24),
                   _PriceRow(
                     label:
                         '${AppConfigService.instance.advancePercent}% advance',
-                    value: 'â‚¹$advance',
+                    value: '₹$advance',
                     highlight: true,
                   ),
                   const SizedBox(height: 8),
                   _PriceRow(
                     label: 'Balance on delivery',
-                    value: 'â‚¹${total - advance!}',
+                    value: '₹${total - advance!}',
                   ),
                 ],
               ),
@@ -222,7 +222,7 @@ String _deliveryMessage({
   if (pack.isCustom) {
     return '$freeVillage always has free delivery. In the other $otherVillages villages, '
         'orders below $threshold cans include the delivery charge configured '
-        'for the selected village (â‚¹$deliveryCharge global fallback); '
+        'for the selected village (₹$deliveryCharge global fallback); '
         'orders of $threshold cans or more are delivered free.';
   }
   if (pack.cans! >= threshold) {
@@ -230,7 +230,7 @@ String _deliveryMessage({
         '${pack.cans} cans (minimum free-delivery quantity: $threshold cans).';
   }
   return 'FREE delivery in $freeVillage. For the other $otherVillages villages, '
-      'the configured village delivery charge applies (â‚¹$deliveryCharge global fallback) because this pack contains '
+      'the configured village delivery charge applies (₹$deliveryCharge global fallback) because this pack contains '
       '${pack.cans} cans, which is below the $threshold-can free-delivery limit.';
 }
 

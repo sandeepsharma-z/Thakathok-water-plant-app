@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
 import '../services/notification_store.dart';
 import '../services/app_config_service.dart';
@@ -21,37 +21,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _loading = true;
   String? _error;
   List<AppNotification> _items = const [];
-  RealtimeChannel? _channel;
+  Timer? _poller;
   @override
   void initState() {
     super.initState();
     _load();
-    _subscribe();
+    _poller = Timer.periodic(const Duration(seconds: 20), (_) => _load());
   }
 
   @override
   void dispose() {
-    if (_channel != null) Supabase.instance.client.removeChannel(_channel!);
+    _poller?.cancel();
     super.dispose();
-  }
-
-  Future<void> _subscribe() async {
-    final mobile = await AuthService.instance.currentMobile() ?? '';
-    if (mobile.length != 10 || !mounted) return;
-    _channel = Supabase.instance.client
-        .channel('notification-screen-$mobile')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'customer_notifications',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'mobile',
-            value: mobile,
-          ),
-          callback: (_) => _load(),
-        )
-        .subscribe();
   }
 
   Future<void> _load() async {
@@ -247,7 +228,7 @@ String _time(DateTime d) {
   final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
   final minute = local.minute.toString().padLeft(2, '0');
   final period = local.hour < 12 ? 'AM' : 'PM';
-  return '${local.day}/${local.month}/${local.year} Â· $hour:$minute $period';
+  return '${local.day}/${local.month}/${local.year} · $hour:$minute $period';
 }
 
 class _Empty extends StatelessWidget {

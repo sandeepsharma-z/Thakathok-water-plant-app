@@ -1,4 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'auth_service.dart';
+import 'customer_api_service.dart';
 
 class WalletOrder {
   const WalletOrder({
@@ -26,8 +28,14 @@ class WalletService {
     required String mobile,
     required int amount,
   }) async {
+    final token = await AuthService.instance.currentToken() ?? '';
     final response = await _invokeWalletPayment(
-      {'action': 'create', 'mobile': mobile, 'amount': amount},
+      {
+        'action': 'create',
+        'mobile': mobile,
+        'session_token': token,
+        'amount': amount,
+      },
     );
     final data = Map<String, dynamic>.from(response.data as Map);
     if (data['error'] != null) throw Exception(data['error']);
@@ -46,10 +54,12 @@ class WalletService {
     required String paymentId,
     required String signature,
   }) async {
+    final token = await AuthService.instance.currentToken() ?? '';
     final response = await _invokeWalletPayment(
       {
         'action': 'verify',
         'mobile': mobile,
+        'session_token': token,
         'order_id': orderId,
         'payment_id': paymentId,
         'signature': signature,
@@ -77,21 +87,12 @@ class WalletService {
   }
 
   Future<int> balance(String mobile) async {
-    final row = await _db
-        .from('customers')
-        .select('wallet_balance')
-        .eq('mobile', mobile)
-        .single();
-    return (row['wallet_balance'] as num?)?.toInt() ?? 0;
+    final result = await CustomerApiService.instance.call('wallet');
+    return (result['balance'] as num?)?.toInt() ?? 0;
   }
 
   Future<List<Map<String, dynamic>>> transactions(String mobile) async {
-    final rows = await _db
-        .from('wallet_transactions')
-        .select()
-        .eq('mobile', mobile)
-        .order('created_at', ascending: false)
-        .limit(50);
-    return List<Map<String, dynamic>>.from(rows);
+    final result = await CustomerApiService.instance.call('wallet');
+    return List<Map<String, dynamic>>.from(result['transactions'] as List);
   }
 }

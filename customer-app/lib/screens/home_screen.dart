@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/product_pack.dart';
 import '../services/booking_service.dart';
@@ -48,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen>
   int _notificationCount = 0;
   CustomerHomeSummary _summary = const CustomerHomeSummary();
   bool _bannerPrecacheStarted = false;
-  RealtimeChannel? _notificationChannel;
+  Timer? _notificationPoller;
 
   @override
   void initState() {
@@ -59,7 +58,10 @@ class _HomeScreenState extends State<HomeScreen>
     );
     _loadProfile();
     _loadHomeData();
-    _subscribeToNotifications();
+    _notificationPoller = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _loadNotificationState(),
+    );
   }
 
   @override
@@ -83,30 +85,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
-    if (_notificationChannel != null) {
-      Supabase.instance.client.removeChannel(_notificationChannel!);
-    }
+    _notificationPoller?.cancel();
     _refreshController.dispose();
     super.dispose();
-  }
-
-  Future<void> _subscribeToNotifications() async {
-    final mobile = await AuthService.instance.currentMobile() ?? '';
-    if (mobile.length != 10 || !mounted) return;
-    _notificationChannel = Supabase.instance.client
-        .channel('home-notifications-$mobile')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'customer_notifications',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'mobile',
-            value: mobile,
-          ),
-          callback: (_) => _loadNotificationState(),
-        )
-        .subscribe();
   }
 
   Future<void> _loadProfile() async {
@@ -353,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Header ────────────────────────────────────────────────────────────
 class _WaterRefreshBadge extends StatelessWidget {
   const _WaterRefreshBadge({
     required this.status,
@@ -459,9 +440,9 @@ class _Header extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Brand logo Ã¢â‚¬â€ truly centred on the screen.
+            // Brand logo — truly centred on the screen.
             const BrandLogo(size: 44),
-            // Menu Ã¢â‚¬â€ pinned left. Nudged out so the glyph's stroke lines up
+            // Menu — pinned left. Nudged out so the glyph's stroke lines up
             // with the greeting text below it, not the icon's padded box.
             Align(
               alignment: Alignment.centerLeft,
@@ -477,7 +458,7 @@ class _Header extends StatelessWidget {
                 ),
               ),
             ),
-            // Notifications + profile Ã¢â‚¬â€ pinned right
+            // Notifications + profile — pinned right
             Align(
               alignment: Alignment.centerRight,
               child: Row(
@@ -550,13 +531,13 @@ class _Header extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Notifications Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-/// App notifications. Static for now Ã¢â‚¬â€ booking/payment updates will be wired
+// ── Notifications ─────────────────────────────────────────────────────
+/// App notifications. Static for now — booking/payment updates will be wired
 /// to Supabase once phone-OTP auth lands.
 const List<({IconData icon, String title, String body})> _kNotifications = [
   (
     icon: Icons.water_drop_rounded,
-    title: 'Welcome to ThakaThok Ã°Å¸â€™Â§',
+    title: 'Welcome to ThakaThok 💧',
     body: 'Book bulk water for your weddings & events in just a few taps.',
   ),
   (
@@ -694,7 +675,7 @@ class _NotificationTile extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Side drawer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Side drawer ───────────────────────────────────────────────────────
 class _AppDrawer extends StatelessWidget {
   const _AppDrawer({
     required this.profile,
@@ -799,7 +780,7 @@ class _AppDrawer extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                'ThakaThok Ã‚Â· Mahalakshmi Water Plant',
+                'ThakaThok · Mahalakshmi Water Plant',
                 style: TextStyle(
                     fontSize: 10.5,
                     color: AppColors.body.withValues(alpha: 0.7)),
@@ -832,7 +813,7 @@ class _DrawerItem extends StatelessWidget {
           () {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$label Ã¢â‚¬â€ coming soon')),
+              SnackBar(content: Text('$label — coming soon')),
             );
           },
       minLeadingWidth: 28,
@@ -841,12 +822,12 @@ class _DrawerItem extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Greeting Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Greeting ──────────────────────────────────────────────────────────
 class _Greeting extends StatelessWidget {
   const _Greeting({required this.profile});
   final CustomerProfile profile;
 
-  /// Customer name Ã¢â‚¬â€ comes from the profile once accounts are wired up.
+  /// Customer name — comes from the profile once accounts are wired up.
 
   String get _timeOfDay {
     final h = DateTime.now().hour;
@@ -874,7 +855,7 @@ class _Greeting extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                       color: AppColors.textDark,
                       height: 1.15)),
-              Text('Ã°Å¸â€˜â€¹', style: TextStyle(fontSize: 16)),
+              Text('👋', style: TextStyle(fontSize: 16)),
             ],
           ),
           const SizedBox(height: 2),
@@ -886,7 +867,7 @@ class _Greeting extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Wallet balance + pending dues Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Wallet balance + pending dues ─────────────────────────────────────
 String _firstName(String fullName) {
   final trimmed = fullName.trim();
   return trimmed.isEmpty ? 'Customer' : trimmed.split(RegExp(r'\s+')).first;
@@ -1046,7 +1027,7 @@ class _WalletDuesRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: _kPad),
       // IntrinsicHeight gives the Row a bounded height so both cards can
-      // stretch to match Ã¢â‚¬â€ a bare `stretch` would be unbounded in a scroll view.
+      // stretch to match — a bare `stretch` would be unbounded in a scroll view.
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1058,7 +1039,7 @@ class _WalletDuesRow extends StatelessWidget {
                 iconColor: AppColors.liveBrand,
                 title: 'Wallet Balance',
                 titleColor: AppColors.liveBrand,
-                amount: 'Ã¢â€šÂ¹$walletBalance',
+                amount: '₹$walletBalance',
                 paise: '.00',
                 action: 'Add Money',
                 actionFilled: true,
@@ -1073,7 +1054,7 @@ class _WalletDuesRow extends StatelessWidget {
                 iconColor: Color(0xFFE23D3D),
                 title: 'Pending Dues',
                 titleColor: const Color(0xFFE23D3D),
-                amount: 'Ã¢â€šÂ¹$pendingDues',
+                amount: '₹$pendingDues',
                 paise: '.00',
                 action: 'View Details',
                 actionFilled: false,
@@ -1229,7 +1210,7 @@ class _MoneyCard extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Trust strip Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Trust strip ───────────────────────────────────────────────────────
 class _TrustStrip extends StatelessWidget {
   const _TrustStrip();
 
@@ -1287,7 +1268,7 @@ class _TrustStrip extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Search bar Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Search bar ────────────────────────────────────────────────────────
 class _SearchBar extends StatefulWidget {
   const _SearchBar();
 
@@ -1421,7 +1402,7 @@ class _SearchButton extends StatelessWidget {
   }
 }
 
-/// Small white bubbles that rise slowly and fade Ã¢â‚¬â€ a subtle "water" motion
+/// Small white bubbles that rise slowly and fade — a subtle "water" motion
 /// behind the search icon.
 class _RisingBubbles extends StatefulWidget {
   const _RisingBubbles();
@@ -1497,7 +1478,7 @@ class _BubblePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..style = PaintingStyle.fill;
     for (final b in bubbles) {
-      final p = ((t * b.speed) + b.phase) % 1.0; // 0 (bottom) Ã¢â€ â€™ 1 (top)
+      final p = ((t * b.speed) + b.phase) % 1.0; // 0 (bottom) → 1 (top)
       final y = size.height * (1 - p);
       final x = size.width *
           (b.x + b.drift * math.sin(p * math.pi * 2)).clamp(0.05, 0.95);
@@ -1512,7 +1493,7 @@ class _BubblePainter extends CustomPainter {
 }
 
 /// Placeholder that types itself out, holds, deletes and moves to the
-/// next phrase Ã¢â‚¬â€ with a blinking caret.
+/// next phrase — with a blinking caret.
 class _TypingHint extends StatefulWidget {
   const _TypingHint({super.key});
 
@@ -1628,7 +1609,7 @@ class _CaretState extends State<_Caret> with SingleTickerProviderStateMixin {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Banner carousel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Banner carousel ───────────────────────────────────────────────────
 class _BannerCarousel extends StatefulWidget {
   const _BannerCarousel({required this.banners});
 
@@ -1707,7 +1688,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Weekend splash offer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Weekend splash offer ──────────────────────────────────────────────
 class _OfferCard extends StatelessWidget {
   const _OfferCard({
     required this.title,
@@ -1824,7 +1805,7 @@ class _DashedBorderPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Section header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Section header ────────────────────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({
     required this.title,
@@ -1879,7 +1860,7 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Most popular slider Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Most popular slider ───────────────────────────────────────────────
 class _PopularSlider extends StatelessWidget {
   const _PopularSlider();
 
@@ -1977,7 +1958,7 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Full-bleed asset banner Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Full-bleed asset banner ───────────────────────────────────────────
 class _DynamicPromoBanner extends StatelessWidget {
   const _DynamicPromoBanner({required this.banner});
 
@@ -2009,7 +1990,7 @@ class _DynamicPromoBanner extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Shop by need Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Shop by need ──────────────────────────────────────────────────────
 class _ShopByNeed extends StatelessWidget {
   const _ShopByNeed({required this.categories});
 
@@ -2095,7 +2076,7 @@ class _ShopByNeed extends StatelessWidget {
   }
 }
 
-// Ã¢â€â‚¬Ã¢â€â‚¬ Footer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Footer ────────────────────────────────────────────────────────────
 class _Footer extends StatefulWidget {
   const _Footer({
     required this.onOpenProfile,
@@ -2119,7 +2100,7 @@ class _FooterState extends State<_Footer> with SingleTickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 2400),
     )..repeat(reverse: true);
-    // Gently swells past the circle's edge, then eases back Ã¢â‚¬â€ never tiny.
+    // Gently swells past the circle's edge, then eases back — never tiny.
     _pulse = Tween<double>(begin: 1.55, end: 2.15).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
@@ -2186,7 +2167,7 @@ class _FooterState extends State<_Footer> with SingleTickerProviderStateMixin {
                   ),
                 ),
               ),
-              // Centre "Products" button Ã¢â‚¬â€ droplet swells out of the circle
+              // Centre "Products" button — droplet swells out of the circle
               Positioned(
                 top: 0,
                 child: GestureDetector(

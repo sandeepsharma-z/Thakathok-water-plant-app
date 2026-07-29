@@ -46,3 +46,7 @@ app.*.map.json
 
 # Local Supabase credentials (copy from supabase_config.example.dart)
 lib/config/supabase_config.dart
+
+# Private Android release-signing material. Back these up securely for updates.
+/android/key.properties
+/android/app/upload-keystore.jks

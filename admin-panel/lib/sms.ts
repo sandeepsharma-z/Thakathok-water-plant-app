@@ -55,20 +55,22 @@ async function sendDlt(
   if (!templateId || !numbers) {
     return { sent: false, message: "SMS template or mobile number is missing." };
   }
-  const body = new URLSearchParams({
-    authorization: apiKey,
+  const body = {
     route: "dlt",
     sender_id: SENDER_ID,
     message: templateId,
     variables_values: variables.map((v) => String(v)).join("|") + "|",
     numbers,
     flash: "0",
-  });
+  };
   try {
     const res = await fetch(FAST2SMS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body,
+      headers: {
+        authorization: apiKey.trim(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     });
     const json = (await res.json()) as {
       return?: boolean;

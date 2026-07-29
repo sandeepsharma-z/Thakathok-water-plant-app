@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/order_details.dart';
+import 'auth_service.dart';
 
 class SecureBookingPaymentOrder {
   const SecureBookingPaymentOrder({
@@ -22,10 +23,12 @@ class BookingPaymentService {
   SupabaseClient get _db => Supabase.instance.client;
 
   Future<SecureBookingPaymentOrder> createOrder(OrderDetails order) async {
+    final token = await AuthService.instance.currentToken() ?? '';
     final date =
         '${order.eventDate.year.toString().padLeft(4, '0')}-${order.eventDate.month.toString().padLeft(2, '0')}-${order.eventDate.day.toString().padLeft(2, '0')}';
     final response = await _db.functions.invoke('booking-payment', body: {
       'action': 'create',
+      'session_token': token,
       'name': order.name,
       'mobile': order.mobile,
       'event_type': order.eventType,
@@ -52,8 +55,12 @@ class BookingPaymentService {
     required String paymentId,
     required String signature,
   }) async {
+    final mobile = await AuthService.instance.currentMobile() ?? '';
+    final token = await AuthService.instance.currentToken() ?? '';
     final response = await _db.functions.invoke('booking-payment', body: {
       'action': 'verify',
+      'mobile': mobile,
+      'session_token': token,
       'order_id': orderId,
       'payment_id': paymentId,
       'signature': signature,

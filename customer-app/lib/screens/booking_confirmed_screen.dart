@@ -5,7 +5,7 @@ import '../theme/app_colors.dart';
 import '../services/app_config_service.dart';
 import 'home_screen.dart';
 
-/// Screen 4 â€” shown after the advance is paid (online) or the customer has
+/// Screen 4 — shown after the advance is paid (online) or the customer has
 /// committed to paying cash. Online = confirmed now; cash = pending until the
 /// plant confirms the received cash.
 class BookingConfirmedScreen extends StatelessWidget {
@@ -17,7 +17,7 @@ class BookingConfirmedScreen extends StatelessWidget {
 
   final OrderDetails order;
 
-  /// true â†’ paid online (confirmed immediately); false â†’ cash (pending).
+  /// true → paid online (confirmed immediately); false → cash (pending).
   final bool paidOnline;
 
   @override
@@ -95,13 +95,13 @@ class BookingConfirmedScreen extends StatelessWidget {
                     if (order.hasDiscount) ...[
                       const SizedBox(height: 10),
                       _kv('Offer ${order.offerCode}',
-                          '-Ã¢â€šÂ¹${order.discountAmount}'),
+                          '-₹${order.discountAmount}'),
                     ],
                     const Divider(height: 24),
                     _kv(confirmed ? 'Advance Paid' : 'Advance Due',
-                        'â‚¹${order.advance}'),
+                        '₹${order.advance}'),
                     const SizedBox(height: 10),
-                    _kv('Balance (COD)', 'â‚¹${order.balance}'),
+                    _kv('Balance (COD)', '₹${order.balance}'),
                   ],
                 ),
               ),

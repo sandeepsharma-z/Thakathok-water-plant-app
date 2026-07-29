@@ -1,4 +1,4 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'customer_api_service.dart';
 
 class AppNotification {
   const AppNotification({
@@ -22,17 +22,11 @@ class AppNotification {
 class NotificationStore {
   NotificationStore._();
   static final NotificationStore instance = NotificationStore._();
-  SupabaseClient get _db => Supabase.instance.client;
-
   Future<List<AppNotification>> notifications(String mobile) async {
     if (mobile.length != 10) return const [];
-    final rows = await _db
-        .from('customer_notifications')
-        .select(
-            'id,read_at,created_at,notification_campaigns(title,body,notification_type,action_type)')
-        .eq('mobile', mobile)
-        .isFilter('deleted_at', null)
-        .order('created_at', ascending: false);
+    final result = await CustomerApiService.instance.call('notifications');
+    final rows =
+        List<Map<String, dynamic>>.from(result['notifications'] as List);
     return rows.map((row) {
       final campaign =
           Map<String, dynamic>.from(row['notification_campaigns'] as Map);
@@ -58,33 +52,26 @@ class NotificationStore {
 
   Future<void> markAllRead(String mobile) async {
     if (mobile.length != 10) return;
-    await _db
-        .from('customer_notifications')
-        .update({'read_at': DateTime.now().toIso8601String()})
-        .eq('mobile', mobile)
-        .isFilter('read_at', null)
-        .isFilter('deleted_at', null);
+    await CustomerApiService.instance.call(
+      'notifications_update',
+      {'operation': 'mark_all'},
+    );
   }
 
   Future<void> remove(String mobile, String notificationId) async {
-    await _db
-        .from('customer_notifications')
-        .update({'deleted_at': DateTime.now().toIso8601String()})
-        .eq('id', notificationId)
-        .eq('mobile', mobile);
+    await CustomerApiService.instance.call(
+      'notifications_update',
+      {'operation': 'remove', 'id': notificationId},
+    );
   }
 
   Future<void> removeAll(
       String mobile, Iterable<String> notificationIds) async {
     final ids = notificationIds.toList();
     if (ids.isEmpty) return;
-    await _db
-        .from('customer_notifications')
-        .update({
-          'deleted_at': DateTime.now().toIso8601String(),
-          'read_at': DateTime.now().toIso8601String(),
-        })
-        .eq('mobile', mobile)
-        .inFilter('id', ids);
+    await CustomerApiService.instance.call(
+      'notifications_update',
+      {'operation': 'remove_all', 'ids': ids},
+    );
   }
 }

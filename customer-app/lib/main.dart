@@ -15,8 +15,7 @@ Future<void> main() async {
   await Supabase.initialize(
     url: SupabaseConfig.url,
     // Publishable (anon) key — safe to embed in the client.
-    anonKey: SupabaseConfig.anonKey,
-    // ignore: deprecated_member_use
+    publishableKey: SupabaseConfig.anonKey,
   );
   // Pull live rate / delivery / contact from the admin-controlled settings.
   // Short timeout so a slow network never blocks app start (defaults kick in).
@@ -58,10 +57,16 @@ class ThakaThokApp extends StatelessWidget {
 class _AuthGate extends StatelessWidget {
   const _AuthGate();
 
+  Future<bool> _hasValidLocalSession() async {
+    final mobile = await AuthService.instance.currentMobile();
+    final token = await AuthService.instance.currentToken();
+    return mobile != null && token != null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: AuthService.instance.currentMobile(),
+    return FutureBuilder<bool>(
+      future: _hasValidLocalSession(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
@@ -71,9 +76,9 @@ class _AuthGate extends StatelessWidget {
             ),
           );
         }
-        return snapshot.data == null
-            ? const LoginScreen()
-            : const SplashScreen();
+        return snapshot.data == true
+            ? const SplashScreen()
+            : const LoginScreen();
       },
     );
   }
