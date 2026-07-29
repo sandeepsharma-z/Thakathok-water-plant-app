@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendImmediateOrderConfirmation } from "../_shared/order-confirmation-sms.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const hex=(bytes:ArrayBuffer)=>[...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,"0")).join("");
@@ -64,6 +65,7 @@ Deno.serve(async(request)=>{
    const payment=await paymentResponse.json(),order=await orderResponse.json();
    if(!paymentResponse.ok||!orderResponse.ok||payment.order_id!==orderId||payment.amount!==Number(bound.amount)*100||payment.currency!=="INR"||payment.status!=="captured"||order.amount!==Number(bound.amount)*100||order.status!=="paid")return json({error:"Payment is not captured and paid yet."},409);
    const {data,error}=await db.rpc("finalize_verified_booking_payment",{p_order_id:orderId,p_payment_id:paymentId});if(error)throw error;
+   if(data?.booking_id)await sendImmediateOrderConfirmation(db,String(data.booking_id));
    return json({success:true,...data});
   }
   return json({error:"Unknown action."},400);

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendImmediateOrderConfirmation } from "../_shared/order-confirmation-sms.ts";
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...cors,"Content-Type":"application/json"}});
 const digits=(v:unknown)=>String(v??"").replace(/\D/g,"");
@@ -29,6 +30,7 @@ Deno.serve(async req=>{
   const payload={booking_code:bookingCode,customer_name:name,event_type:eventType,cans,per_can_rate:rate,subtotal,delivery_charge:delivery,grand_total:total,advance,balance,village,mobile,address,event_date:eventDate,event_time:eventTime,offer_code:code,offer_discount_percent:percent,discount_amount:discount};
   const {data,error}=await db.rpc("pay_booking_from_wallet",{p_mobile:mobile,p_token_hash:tokenHash,p_request_id:requestId,p_payload:payload});
   if(error){if(error.message.includes("INSUFFICIENT_BALANCE"))return json({error:"Your wallet balance is insufficient for this advance."},409);if(error.message.includes("INVALID_SESSION"))return json({error:"Your session has expired. Please login again."},401);throw error;}
+  if(data?.booking_id&&!data?.already_paid)await sendImmediateOrderConfirmation(db,String(data.booking_id));
   return json({success:true,...data});
  }catch(e){return json({error:e instanceof Error?e.message:"Wallet payment failed."},500);}
 });
