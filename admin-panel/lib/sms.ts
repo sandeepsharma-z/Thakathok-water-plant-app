@@ -168,7 +168,8 @@ async function sendBookingSms(
 }
 
 /**
- * Order Confirmation → customer. Variables: Booking ID, Cans, Date, Balance.
+ * Order Confirmation → customer.
+ * Approved DLT variables: Customer name, Booking ID.
  * Best-effort: returns false silently if keys/templates aren't configured yet.
  */
 export async function sendOrderConfirmation(
@@ -181,11 +182,14 @@ export async function sendOrderConfirmation(
     "order_confirmation",
     s.sms_template_order,
     s.fast2sms_api_key,
-    [b.booking_code, b.cans, b.event_date, b.balance],
+    [b.customer_name, b.booking_code],
   );
 }
 
-/** Delivery Confirmation → customer. Variables: Booking ID, Cans, Contact. */
+/**
+ * Delivery Confirmation → customer.
+ * Approved DLT variables: Customer name, Pending amount.
+ */
 export async function sendDeliveryConfirmation(
   b: Booking,
 ): Promise<SmsSendResult> {
@@ -196,11 +200,14 @@ export async function sendDeliveryConfirmation(
     "delivery_confirmation",
     s.sms_template_delivery,
     s.fast2sms_api_key,
-    [b.booking_code, b.cans, s.plant_phone],
+    [b.customer_name, b.balance],
   );
 }
 
-/** Pending Dues Reminder → customer. Variables: Balance, Booking ID. */
+/**
+ * Pending Dues Reminder → customer.
+ * Approved DLT variables: Customer name, Pending amount.
+ */
 export async function sendDuesReminder(
   b: Booking,
 ): Promise<SmsSendResult> {
@@ -211,7 +218,7 @@ export async function sendDuesReminder(
     "dues_reminder",
     s.sms_template_dues,
     s.fast2sms_api_key,
-    [b.balance, b.booking_code],
+    [b.customer_name, b.balance],
     24,
   );
 }
