@@ -21,6 +21,7 @@ export async function createDeliveryStaff(
     const db=await adminClient();
     const{data,error}=await db.functions.invoke("manage-delivery-staff",{body:{
       name:String(form.get("name")??"").trim(),
+      email:String(form.get("email")??"").trim().toLowerCase(),
       mobile:String(form.get("mobile")??"").replace(/\D/g,""),
       password:String(form.get("password")??""),
     }});

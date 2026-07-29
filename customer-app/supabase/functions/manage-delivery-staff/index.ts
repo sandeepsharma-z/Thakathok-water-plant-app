@@ -28,18 +28,18 @@ Deno.serve(async(req)=>{
     const input=await req.json();
     const name=String(input.name??"").trim();
     const mobile=digits(input.mobile);
+    const email=String(input.email??"").trim().toLowerCase();
     const password=String(input.password??"");
-    if(name.length<2||mobile.length!==10||password.length<6){
-      return json({error:"Enter a valid name, 10-digit mobile and 6+ character password."},400);
+    if(name.length<2||mobile.length!==10||!email.includes("@")||password.length<8){
+      return json({error:"Enter a valid name, email, 10-digit mobile and 8+ character password."},400);
     }
-    const email=`staff.${mobile}@mahalakshmiwaterplant.com`;
     const {data:created,error:createError}=await admin.auth.admin.createUser({
       email,password,email_confirm:true,
       user_metadata:{name,mobile,role:"delivery_staff"},
     });
     if(createError)return json({error:createError.message},409);
     const {error:profileError}=await admin.from("delivery_staff").insert({
-      user_id:created.user.id,name,mobile,
+      user_id:created.user.id,name,mobile,email,
     });
     if(profileError){
       await admin.auth.admin.deleteUser(created.user.id);

@@ -1,0 +1,9 @@
+{
+  "name":"ThakaThok Delivery Staff",
+  "short_name":"Delivery",
+  "start_url":"/",
+  "display":"standalone",
+  "background_color":"#f3f8ff",
+  "theme_color":"#075bd8",
+  "icons":[]
+}

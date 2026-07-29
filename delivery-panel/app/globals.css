@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root { --brand:#075bd8; --ink:#0b2848; --canvas:#f3f8ff; }
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(47,161,255,.18),transparent 30rem),
+    linear-gradient(180deg,#edf6ff 0%,var(--canvas) 55%,#fff 100%);
+  color:var(--ink);
+  font-family:Arial,Helvetica,sans-serif;
+}
+button,input,textarea { font:inherit; }

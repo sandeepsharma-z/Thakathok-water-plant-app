@@ -1,4 +1,4 @@
-import {Camera,FileSignature,IndianRupee,PackageCheck,Phone,Truck,UserPlus} from "lucide-react";
+import {Camera,ExternalLink,FileSignature,IndianRupee,Mail,PackageCheck,Phone,Truck,UserPlus} from "lucide-react";
 import {DeliveryStaffCreateForm} from "@/components/delivery-staff-create-form";
 import {PageHead} from "@/components/management-ui";
 import {Card,EmptyState,StatTile} from "@/components/ui";
@@ -7,6 +7,7 @@ import {toggleDeliveryStaff} from "./actions";
 
 export const dynamic="force-dynamic";
 export default async function DeliveryStaffPage(){
+  const panelUrl=process.env.NEXT_PUBLIC_DELIVERY_PANEL_URL??"https://thakathok-delivery.vercel.app";
   const db=await createClient();
   const[{data:staff},{data:records}]=await Promise.all([
     db.from("delivery_staff").select("*").order("created_at"),
@@ -22,7 +23,10 @@ export default async function DeliveryStaffPage(){
       <StatTile label="Completed deliveries" value={(records??[]).length} icon="truck" accent="aqua" index={2}/>
     </div>
     <Card className="mt-5 p-5">
-      <div className="flex items-center gap-3"><UserPlus className="h-6 w-6 text-brand"/><div><h2 className="font-extrabold text-ink">Add delivery staff</h2><p className="text-[11px] text-ink-muted">Staff signs in at /staff/login using this mobile number and password.</p></div></div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3"><UserPlus className="h-6 w-6 text-brand"/><div><h2 className="font-extrabold text-ink">Add delivery staff</h2><p className="text-[11px] text-ink-muted">Create a separate email/password login for the dedicated Delivery Staff Panel.</p></div></div>
+        <a href={panelUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-[12px] font-extrabold text-white shadow-sm"><ExternalLink className="h-4 w-4"/>Open Staff Panel</a>
+      </div>
       <DeliveryStaffCreateForm/>
     </Card>
     <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -31,7 +35,7 @@ export default async function DeliveryStaffPage(){
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-center gap-3">
               <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-tint text-lg font-extrabold text-brand">{person.name.slice(0,1).toUpperCase()}</span>
-              <div className="min-w-0"><p className="truncate font-extrabold text-ink">{person.name}</p><p className="mt-1 flex items-center gap-1 text-[12px] text-ink-muted"><Phone className="h-3.5 w-3.5"/>+91 {person.mobile}</p></div>
+              <div className="min-w-0"><p className="truncate font-extrabold text-ink">{person.name}</p><p className="mt-1 flex items-center gap-1 text-[12px] text-ink-muted"><Phone className="h-3.5 w-3.5"/>+91 {person.mobile}</p>{person.email&&<p className="mt-1 flex items-center gap-1 truncate text-[11px] text-ink-muted"><Mail className="h-3.5 w-3.5"/>{person.email}</p>}</div>
             </div>
             <span className={`rounded-full px-3 py-1 text-[10px] font-extrabold ${person.enabled?"bg-ok-bg text-ok":"bg-danger-bg text-danger"}`}>{person.enabled?"ACTIVE":"DISABLED"}</span>
           </div>
