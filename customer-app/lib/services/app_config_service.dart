@@ -151,8 +151,6 @@ class AppConfigService extends ChangeNotifier {
       plantDisplayName =
           '${branding['plant_display_name'] ?? plantDisplayName}';
       logoUrl = '${branding['logo_url'] ?? logoUrl}';
-      primaryColor = _color('${branding['primary_color'] ?? ''}', primaryColor);
-      accentColor = _color('${branding['accent_color'] ?? ''}', accentColor);
       labels = {...labels, ..._stringMap(row['app_labels'])};
       payment = {...payment, ..._stringMap(row['payment_content'])};
       notifyListeners();
@@ -167,14 +165,6 @@ class AppConfigService extends ChangeNotifier {
       result = result.replaceAll('{${entry.key}}', entry.value);
     }
     return result;
-  }
-
-  static Color _color(String value, Color fallback) {
-    final hex = value.replaceFirst('#', '');
-    final parsed = int.tryParse(hex, radix: 16);
-    return parsed == null || hex.length != 6
-        ? fallback
-        : Color(0xFF000000 | parsed);
   }
 
   static Map<String, dynamic> _map(dynamic value) =>

@@ -1,4 +1,4 @@
-import { ImageIcon, Palette } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import { PageHead, buttonClass, inputClass } from "@/components/management-ui";
 import { Card } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -7,9 +7,8 @@ import { saveAppBranding } from "./actions";
 export const dynamic="force-dynamic";
 export default async function AppBrandingPage(){
  const db=await createClient();const {data}=await db.from("settings").select("app_branding").eq("id",1).single();const b=(data?.app_branding??{}) as Record<string,string>;
- return <><PageHead title="App Branding" body="Update the customer app logo, brand identity and primary colour palette."/><form action={saveAppBranding} className="mt-6 space-y-5"><div className="grid gap-5 xl:grid-cols-2">
+ return <><PageHead title="App Branding" body="Update the customer app logo and brand identity."/><form action={saveAppBranding} className="mt-6 max-w-4xl space-y-5">
   <Card className="p-5"><div className="flex items-center gap-3"><ImageIcon className="h-6 w-6 text-brand"/><h2 className="font-extrabold text-ink">Logo & names</h2></div><div className="mt-5 space-y-4"><label className="text-[12px] font-bold text-ink">Brand name<input name="brand_name" defaultValue={b.brand_name} required className={inputClass}/></label><label className="text-[12px] font-bold text-ink">Plant display name<input name="plant_display_name" defaultValue={b.plant_display_name} required className={inputClass}/></label><div className="flex items-center gap-4"><div className="grid h-24 w-24 place-items-center overflow-hidden rounded-2xl border border-line bg-canvas">{b.logo_url?.startsWith("http")?<img src={b.logo_url} alt="" className="h-full w-full object-contain"/>:<ImageIcon className="h-8 w-8 text-ink-faint"/>}</div><div className="flex-1"><input type="hidden" name="logo_current" value={b.logo_url}/><input type="file" name="logo_file" accept="image/png,image/jpeg,image/webp" className="w-full text-[12px]"/></div></div></div></Card>
-  <Card className="p-5"><div className="flex items-center gap-3"><Palette className="h-6 w-6 text-brand"/><h2 className="font-extrabold text-ink">App colours</h2></div><div className="mt-5 grid gap-5 sm:grid-cols-2">{[["Primary colour","primary_color",b.primary_color??"#004FDA"],["Accent colour","accent_color",b.accent_color??"#37B6FF"]].map(([label,name,value])=><label key={name} className="text-[12px] font-bold text-ink">{label}<div className="mt-2 flex h-12 items-center gap-3 rounded-xl border border-line bg-canvas px-3"><input type="color" name={name} defaultValue={value} className="h-8 w-12 cursor-pointer border-0 bg-transparent"/><span className="font-mono text-[13px]">{value}</span></div></label>)}</div><div className="mt-6 h-28 rounded-3xl p-5 text-white" style={{background:`linear-gradient(135deg,${b.primary_color??"#004FDA"},${b.accent_color??"#37B6FF"})`}}><p className="text-xl font-extrabold">{b.brand_name}</p><p className="text-sm opacity-85">{b.plant_display_name}</p></div></Card>
- </div><div className="sticky bottom-4 rounded-2xl border border-line bg-surface/95 p-4 shadow-xl backdrop-blur"><button className={buttonClass}>Save App Branding</button></div></form></>;
+  <div className="sticky bottom-4 rounded-2xl border border-line bg-surface/95 p-4 shadow-xl backdrop-blur"><button className={buttonClass}>Save App Branding</button></div></form></>;
 }
 
