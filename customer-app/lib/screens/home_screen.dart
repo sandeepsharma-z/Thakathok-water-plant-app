@@ -2034,19 +2034,21 @@ class _ShopByNeed extends StatelessWidget {
                     borderRadius: BorderRadius.circular(60),
                     child: Column(
                       children: [
-                        AspectRatio(
-                          aspectRatio: 1,
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.tint,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.hairline),
-                            ),
-                            child: ClipOval(
-                              child: ContentImage(
-                                source: category.image,
-                                fit: BoxFit.cover,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: AspectRatio(
+                            aspectRatio: 1,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.tint,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.hairline),
+                              ),
+                              child: ClipOval(
+                                child: ContentImage(
+                                  source: category.image,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                           ),
