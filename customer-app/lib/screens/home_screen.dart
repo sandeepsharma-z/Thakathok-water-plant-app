@@ -2131,10 +2131,10 @@ class _FooterState extends State<_Footer> with SingleTickerProviderStateMixin {
                 bottom: 0,
                 child: Container(
                   height: 60,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.tint,
                     borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(47)),
+                        const BorderRadius.vertical(top: Radius.circular(47)),
                   ),
                   child: Row(
                     children: [

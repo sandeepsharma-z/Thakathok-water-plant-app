@@ -13,7 +13,7 @@ class AppColors {
 
   static const Color scaffold = Color(0xFFF5F9FF);
   static const Color surface = Colors.white;
-  static const Color chipBg = Color(0xFFEAF3FF);
+  static Color get chipBg => liveBrand.withValues(alpha: 0.08);
 
   static const Color textDark = Color(0xFF0E2A47);
   static const Color textMuted = Color(0xFF6B7C93);
@@ -28,11 +28,11 @@ class AppColors {
   static const Color heading = Color(0xFF004ED9); // #004ED9
   static const Color body = Color(0xFF484C52); // #484C52
   static const Color offerBg = Color(0xFFEBF4FD); // #EBF4FD
-  static const Color tint = Color(0x47BDDBF1); // #BDDBF147
+  static Color get tint => liveBrand.withValues(alpha: 0.08);
   static const Color hairline = Color(0x14000000); // #00000014
   static const Color cardBorder = Color(0x1F000000); // #0000001F
-  static const Color searchBtn = Color(0xB0004FDA); // #004FDAB0
-  static const Color dashed = Color(0xFF015EC4); // #015EC4
+  static Color get searchBtn => liveBrand.withValues(alpha: 0.9);
+  static Color get dashed => liveBrand;
   static const Color hint = Color(0xFF9AA1AC);
 
   static const LinearGradient blueGradient = LinearGradient(

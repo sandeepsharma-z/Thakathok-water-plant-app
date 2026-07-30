@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class AppConfigService {
+class AppConfigService extends ChangeNotifier {
   AppConfigService._();
   static final instance = AppConfigService._();
 
@@ -155,6 +155,7 @@ class AppConfigService {
       accentColor = _color('${branding['accent_color'] ?? ''}', accentColor);
       labels = {...labels, ..._stringMap(row['app_labels'])};
       payment = {...payment, ..._stringMap(row['payment_content'])};
+      notifyListeners();
     } catch (_) {
       // Keep built-in defaults while offline.
     }

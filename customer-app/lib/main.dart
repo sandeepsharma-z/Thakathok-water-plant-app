@@ -31,12 +31,45 @@ Future<void> main() async {
   runApp(const ThakaThokApp());
 }
 
-class ThakaThokApp extends StatelessWidget {
+class ThakaThokApp extends StatefulWidget {
   const ThakaThokApp({super.key});
 
   @override
+  State<ThakaThokApp> createState() => _ThakaThokAppState();
+}
+
+class _ThakaThokAppState extends State<ThakaThokApp>
+    with WidgetsBindingObserver {
+  AppConfigService get _config => AppConfigService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _config.addListener(_rebuildForConfig);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _config.removeListener(_rebuildForConfig);
+    super.dispose();
+  }
+
+  void _rebuildForConfig() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      AppConfigService.instance.load();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final config = AppConfigService.instance;
+    final config = _config;
     return MaterialApp(
       title: '${config.brandName} — ${config.plantDisplayName}',
       debugShowCheckedModeBanner: false,
@@ -69,10 +102,10 @@ class _AuthGate extends StatelessWidget {
       future: _hasValidLocalSession(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
+          return Scaffold(
             backgroundColor: Colors.white,
             body: Center(
-              child: CircularProgressIndicator(color: AppColors.brand),
+              child: CircularProgressIndicator(color: AppColors.liveBrand),
             ),
           );
         }
