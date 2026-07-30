@@ -2038,7 +2038,6 @@ class _ShopByNeed extends StatelessWidget {
                           aspectRatio: 1,
                           child: Container(
                             margin: const EdgeInsets.symmetric(horizontal: 4),
-                            padding: const EdgeInsets.all(7),
                             decoration: BoxDecoration(
                               color: AppColors.tint,
                               shape: BoxShape.circle,
@@ -2047,7 +2046,7 @@ class _ShopByNeed extends StatelessWidget {
                             child: ClipOval(
                               child: ContentImage(
                                 source: category.image,
-                                fit: BoxFit.contain,
+                                fit: BoxFit.cover,
                               ),
                             ),
                           ),
