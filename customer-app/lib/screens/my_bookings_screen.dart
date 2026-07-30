@@ -407,18 +407,53 @@ class _BookingTileState extends State<_BookingTile> {
             const SizedBox(height: 12),
             Row(children: [
               Expanded(
-                  child: OutlinedButton(
-                onPressed: _working ? null : _changeRequest,
-                child: const Text('Request for Change'),
-              )),
+                child: SizedBox(
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: _working ? null : _changeRequest,
+                    icon: const Icon(Icons.edit_calendar_outlined, size: 17),
+                    label: const Text('Change Request',
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      foregroundColor: AppColors.liveBrand,
+                      backgroundColor: AppColors.tint.withValues(alpha: .45),
+                      side: BorderSide(
+                          color: AppColors.liveBrand.withValues(alpha: .28)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      textStyle: const TextStyle(
+                          fontSize: 11.5, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
               const SizedBox(width: 8),
               Expanded(
-                  child: OutlinedButton(
-                onPressed: _working ? null : _cancelRequest,
-                style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFD32020)),
-                child: const Text('Request Cancellation'),
-              )),
+                child: SizedBox(
+                  height: 44,
+                  child: OutlinedButton.icon(
+                    onPressed: _working ? null : _cancelRequest,
+                    icon: const Icon(Icons.cancel_outlined, size: 17),
+                    label: const Text('Cancel Request',
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      foregroundColor: const Color(0xFFD32020),
+                      backgroundColor: const Color(0xFFFFF4F4),
+                      side: const BorderSide(color: Color(0xFFF1B7B7)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      textStyle: const TextStyle(
+                          fontSize: 11.5, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ),
             ]),
           ],
         ],
