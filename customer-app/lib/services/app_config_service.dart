@@ -97,11 +97,12 @@ class AppConfigService {
     'cash_step_2': 'Pay {advance} cash to {plant_name} within 24 hours',
     'cash_step_3': 'Call / WhatsApp {plant_phone} with your Booking ID',
     'cash_notice':
-        'Booking will be CONFIRMED only after cash is received. Date is not blocked until the advance is paid.',
+        'Booking will be CONFIRMED only after cash is received. Can capacity is reserved after the advance is paid.',
     'cash_button': 'I WILL PAY CASH',
-    'confirmed_message': 'Your advance is received and the date is blocked.',
+    'confirmed_message':
+        'Your advance is received, the booking is confirmed and cans are reserved.',
     'pending_message':
-        'Pay the cash advance to confirm. Date is not blocked yet.',
+        'Pay the cash advance to confirm and reserve the required cans.',
     'non_refundable_note':
         'Note: Advance paid is non-refundable as per policy.',
   };

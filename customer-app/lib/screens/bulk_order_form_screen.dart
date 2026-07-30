@@ -145,7 +145,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
     String dateKey(DateTime date) => '${date.year.toString().padLeft(4, '0')}-'
         '${date.month.toString().padLeft(2, '0')}-'
         '${date.day.toString().padLeft(2, '0')}';
-    var initialDate = _eventDate ?? now.add(const Duration(days: 1));
+    var initialDate = _eventDate ?? DateTime(now.year, now.month, now.day);
     while (unavailable.contains(dateKey(initialDate)) &&
         initialDate.isBefore(lastDate)) {
       initialDate = initialDate.add(const Duration(days: 1));
@@ -167,18 +167,93 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
   }
 
   Future<void> _pickTime() async {
-    final picked = await showTimePicker(
+    await PlantConfig.instance.load();
+    if (!mounted) return;
+    final now = DateTime.now();
+    final earliest =
+        now.add(Duration(minutes: PlantConfig.instance.minimumNoticeMinutes));
+    final selectedToday = _eventDate != null &&
+        _eventDate!.year == now.year &&
+        _eventDate!.month == now.month &&
+        _eventDate!.day == now.day;
+    final slots = List.generate(48, (index) {
+      final minutes = index * 30;
+      return TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
+    }).where((slot) {
+      if (!selectedToday) return true;
+      final value =
+          DateTime(now.year, now.month, now.day, slot.hour, slot.minute);
+      return !value.isBefore(earliest);
+    }).toList();
+    if (slots.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'No delivery slots remain today. Please choose another date.')));
+      return;
+    }
+    final picked = await showModalBottomSheet<TimeOfDay>(
       context: context,
-      initialTime: _eventTime ?? TimeOfDay(hour: 10, minute: 0),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: ColorScheme.light(primary: AppColors.liveBrand),
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(sheetContext).height * .72,
+          child: Column(children: [
+            Text('Select Required Delivery Time',
+                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700, color: AppColors.liveBrand)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
+              child: Text(
+                selectedToday
+                    ? 'Only slots available after the ${_noticeLabel(PlantConfig.instance.minimumNoticeMinutes)} notice are shown.'
+                    : 'Time means the required delivery time.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: AppColors.body),
+              ),
+            ),
+            Expanded(
+              child: GridView.builder(
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 22),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 2.4,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8),
+                itemCount: slots.length,
+                itemBuilder: (_, index) {
+                  final slot = slots[index];
+                  return OutlinedButton(
+                    onPressed: () => Navigator.pop(sheetContext, slot),
+                    child: Text(slot.format(sheetContext)),
+                  );
+                },
+              ),
+            ),
+          ]),
         ),
-        child: child!,
       ),
     );
-    if (picked != null) setState(() => _eventTime = picked);
+    if (picked != null) {
+      if (selectedToday) {
+        final requested =
+            DateTime(now.year, now.month, now.day, picked.hour, picked.minute);
+        if (requested.isBefore(earliest)) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Today’s delivery time must be at least ${_noticeLabel(PlantConfig.instance.minimumNoticeMinutes)} from now.'),
+          ));
+          return;
+        }
+      }
+      setState(() => _eventTime = picked);
+    }
   }
+
+  String _noticeLabel(int minutes) => minutes == 30
+      ? '30 minutes'
+      : '${minutes ~/ 60} hour${minutes == 60 ? '' : 's'}';
 
   Future<void> _submit() async {
     await PlantConfig.instance.load();
@@ -204,18 +279,32 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
     if (!valid) return;
 
     try {
-      final available =
-          await BookingService.instance.isDateAvailable(_eventDate!);
-      if (!available) {
+      final availability =
+          await BookingService.instance.bookingAvailability(_eventDate!, _cans);
+      if (availability.fullyBooked || !availability.canBook) {
         if (!mounted) return;
-        setState(() => _eventDate = null);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              AppConfigService.instance.label('date_unavailable_error'),
+              availability.fullyBooked
+                  ? 'This date is fully booked. Please choose another date.'
+                  : 'Only ${availability.remaining} cans are available on this date.',
             ),
           ),
         );
+        return;
+      }
+      final now = DateTime.now();
+      final requested = DateTime(_eventDate!.year, _eventDate!.month,
+          _eventDate!.day, _eventTime!.hour, _eventTime!.minute);
+      final earliest =
+          now.add(Duration(minutes: availability.minimumNoticeMinutes));
+      if (requested.isBefore(earliest)) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(
+              'Choose a delivery time at least ${_noticeLabel(availability.minimumNoticeMinutes)} from now.'),
+        ));
         return;
       }
     } catch (_) {

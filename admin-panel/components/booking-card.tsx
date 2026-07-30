@@ -20,6 +20,7 @@ import {
   confirmBooking,
   markBookingDelivered,
   markBookingAllDone,
+  reviewBookingRequest,
   type ActionState,
 } from "@/app/actions";
 import { StatusPill } from "@/components/ui";
@@ -55,9 +56,15 @@ function ActionButton({
 
 export function BookingCard({
   booking: b,
+  request,
   index = 0,
 }: {
   booking: Booking;
+  request?: {
+    id:string;request_type:string;reason:string;created_at:string;
+    proposed_event_date:string|null;proposed_event_time:string|null;
+    proposed_cans:number|null;proposed_address:string|null;
+  };
   index?: number;
 }) {
   const [confirmState, confirmAction] = useActionState<ActionState, FormData>(
@@ -76,16 +83,22 @@ export function BookingCard({
     ActionState,
     FormData
   >(markBookingAllDone, {});
+  const [requestState, requestAction] = useActionState<ActionState, FormData>(
+    reviewBookingRequest,
+    {},
+  );
   const error =
     confirmState.error ??
     cancelState.error ??
     deliveryState.error ??
-    allDoneState.error;
+    allDoneState.error ??
+    requestState.error;
   const success =
     confirmState.ok ??
     cancelState.ok ??
     deliveryState.ok ??
-    allDoneState.ok;
+    allDoneState.ok ??
+    requestState.ok;
 
   const isPending = b.status === "pending";
   const isConfirmed = b.status === "confirmed";
@@ -150,6 +163,35 @@ export function BookingCard({
         <span className="text-ink-faint">Address: </span>
         {b.address}
       </p>
+
+      {request ? (
+        <div className="mt-4 ml-2 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-amber-700">
+                {request.request_type === "cancellation"
+                  ? "Cancellation request"
+                  : "Change request"}
+              </p>
+              <p className="mt-1 text-[12px] font-semibold text-ink">{request.reason}</p>
+              {request.request_type === "change" ? (
+                <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-bold text-ink-body">
+                  {request.proposed_event_date&&<span className="rounded-full bg-white px-2 py-1">Date: {request.proposed_event_date}</span>}
+                  {request.proposed_event_time&&<span className="rounded-full bg-white px-2 py-1">Time: {request.proposed_event_time}</span>}
+                  {request.proposed_cans&&<span className="rounded-full bg-white px-2 py-1">Quantity: {request.proposed_cans}</span>}
+                  {request.proposed_address&&<span className="rounded-full bg-white px-2 py-1">Address: {request.proposed_address}</span>}
+                </div>
+              ):null}
+            </div>
+            <form action={requestAction} className="flex flex-wrap items-center gap-2">
+              <input type="hidden" name="request_id" value={request.id}/>
+              <input name="admin_note" placeholder="Admin note (optional)" className="h-9 rounded-xl border border-amber-200 bg-white px-3 text-[11px] outline-none"/>
+              <button name="decision" value="rejected" className="h-9 rounded-xl border border-rose-200 px-3 text-[11px] font-bold text-danger">Reject</button>
+              <button name="decision" value="approved" className="h-9 rounded-xl bg-ok px-3 text-[11px] font-extrabold text-white">Approve</button>
+            </form>
+          </div>
+        </div>
+      ):null}
 
       <div className="mt-4 flex flex-wrap items-end justify-between gap-4 border-t border-line pt-4 pl-2">
         <div className="flex gap-6">

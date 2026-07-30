@@ -53,8 +53,77 @@ Deno.serve(async(req)=>{
       if(error)throw error;return json({ok:true});
     }
     if(action==="bookings"){
-      const{data,error}=await db.from("bookings").select("*").eq("mobile",mobile).order("created_at",{ascending:false});
+      const{data,error}=await db.from("bookings").select("*,booking_requests(id,request_type,status,reason,admin_note,created_at,proposed_event_date,proposed_event_time,proposed_cans,proposed_address)").eq("mobile",mobile).order("created_at",{ascending:false});
       if(error)throw error;return json({bookings:data??[]});
+    }
+    if(action==="booking_availability"){
+      const eventDate=dateOnly(input.event_date);
+      const requestedCans=Math.max(0,Math.round(Number(input.cans??0)));
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(eventDate))return json({error:"Choose a valid date."},400);
+      const[{data:settings},{data:inventory},{data:confirmed},{data:blocked}]=await Promise.all([
+        db.from("settings").select("minimum_notice_minutes,max_cans_per_day").eq("id",1).single(),
+        db.from("can_inventory").select("total_cans,damaged_cans"),
+        db.from("bookings").select("cans").eq("event_date",eventDate).eq("status","confirmed"),
+        db.from("blocked_dates").select("blocked_date").eq("blocked_date",eventDate).eq("source","manual").maybeSingle(),
+      ]);
+      const stock=(inventory??[]).reduce((sum,row)=>sum+Math.max(Number(row.total_cans??0)-Number(row.damaged_cans??0),0),0);
+      const configured=Number(settings?.max_cans_per_day??200);
+      const limit=stock>0?Math.min(configured,stock):configured;
+      const booked=(confirmed??[]).reduce((sum,row)=>sum+Number(row.cans??0),0);
+      const remaining=Math.max(limit-booked,0);
+      return json({
+        blocked:Boolean(blocked),fully_booked:Boolean(blocked)||remaining===0,
+        booked,remaining,limit,can_book:!blocked&&requestedCans<=remaining,
+        minimum_notice_minutes:Number(settings?.minimum_notice_minutes??60),
+      });
+    }
+    if(action==="booking_unavailable_dates"){
+      const from=dateOnly(input.from),to=dateOnly(input.to);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to))
+        return json({error:"Invalid date range."},400);
+      const[{data:settings},{data:inventory},{data:confirmed},{data:manual}]=await Promise.all([
+        db.from("settings").select("max_cans_per_day").eq("id",1).single(),
+        db.from("can_inventory").select("total_cans,damaged_cans"),
+        db.from("bookings").select("event_date,cans").gte("event_date",from).lte("event_date",to).eq("status","confirmed"),
+        db.from("blocked_dates").select("blocked_date").gte("blocked_date",from).lte("blocked_date",to).eq("source","manual"),
+      ]);
+      const stock=(inventory??[]).reduce((sum,row)=>sum+Math.max(Number(row.total_cans??0)-Number(row.damaged_cans??0),0),0);
+      const configured=Number(settings?.max_cans_per_day??200);
+      const limit=stock>0?Math.min(configured,stock):configured;
+      const totals=new Map<string,number>();
+      for(const booking of confirmed??[])totals.set(booking.event_date,(totals.get(booking.event_date)??0)+Number(booking.cans??0));
+      const dates=new Set((manual??[]).map(row=>String(row.blocked_date)));
+      for(const[date,total]of totals)if(total>=limit)dates.add(date);
+      return json({dates:[...dates],limit});
+    }
+    if(action==="booking_request"){
+      const bookingId=String(input.booking_id??"");
+      const requestType=String(input.request_type??"");
+      const reason=String(input.reason??"").trim();
+      if(!bookingId||!["cancellation","change"].includes(requestType)||reason.length<3)
+        return json({error:"Complete the request details."},400);
+      const{data:booking}=await db.from("bookings").select("id,status").eq("id",bookingId).eq("mobile",mobile).maybeSingle();
+      if(!booking)return json({error:"Booking not found."},404);
+      if(!["pending","confirmed"].includes(booking.status))return json({error:"This booking can no longer be changed or cancelled."},409);
+      const row:any={booking_id:bookingId,mobile,request_type:requestType,reason};
+      if(requestType==="change"){
+        const proposedDate=String(input.proposed_event_date??"").trim();
+        const proposedTime=String(input.proposed_event_time??"").trim();
+        const proposedCans=Number(input.proposed_cans??0);
+        const proposedAddress=String(input.proposed_address??"").trim();
+        if(proposedDate)row.proposed_event_date=proposedDate;
+        if(proposedTime)row.proposed_event_time=proposedTime;
+        if(Number.isInteger(proposedCans)&&proposedCans>0)row.proposed_cans=proposedCans;
+        if(proposedAddress)row.proposed_address=proposedAddress;
+        if(!row.proposed_event_date&&!row.proposed_event_time&&!row.proposed_cans&&!row.proposed_address)
+          return json({error:"Enter at least one requested change."},400);
+      }
+      const{data,error}=await db.from("booking_requests").insert(row).select("id,status").single();
+      if(error){
+        if(error.code==="23505")return json({error:"A request for this booking is already pending."},409);
+        throw error;
+      }
+      return json({request:data});
     }
     if(action==="summary"){
       const[{data:customer},{data:bookings,error}]=await Promise.all([
@@ -110,7 +179,7 @@ Deno.serve(async(req)=>{
       if(entered){if(!settings.offer_enabled)return json({error:"This offer is no longer active."},409);if(entered!==String(settings.offer_code).trim().toUpperCase())return json({error:"The offer code has changed."},409);if(subtotal<Number(settings.offer_min_subtotal))return json({error:`Minimum subtotal of Rs.${settings.offer_min_subtotal} is required.`},409);code=entered;percent=Number(settings.offer_discount_percent);discount=Math.round(subtotal*percent/100);}
       const total=subtotal-discount+delivery,advance=Math.round(total*Number(settings.advance_percent)/100),balance=total-advance;
       if(Number(input.expected_advance)!==advance)return json({error:"Pricing changed. Refresh and try again."},409);
-      const d=new Date(`${eventDate}T00:00:00Z`),months=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"],bookingCode=`THK${cans}${months[d.getUTCMonth()]}${d.getUTCDate()}`;
+      const d=new Date(`${eventDate}T00:00:00Z`),months=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"],suffix=crypto.randomUUID().replaceAll("-","").slice(0,4).toUpperCase(),bookingCode=`THK${cans}${months[d.getUTCMonth()]}${d.getUTCDate()}${suffix}`;
       const{data:booking,error}=await db.from("bookings").insert({booking_code:bookingCode,customer_name:name,event_type:eventType,cans,per_can_rate:rate,subtotal,delivery_charge:delivery,grand_total:total,advance,balance,village,mobile,address,event_date:eventDate,event_time:eventTime,payment_method:"cash",offer_code:code||null,offer_discount_percent:percent,discount_amount:discount,status:"pending"}).select("id,booking_code").single();
       if(error)throw error;
       fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/cash-booking-alert`,{method:"POST",headers:{Authorization:`Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,"Content-Type":"application/json"},body:JSON.stringify({booking_id:booking.id})}).catch(()=>{});

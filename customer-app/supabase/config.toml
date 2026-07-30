@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.staff-delivery-sms]
 verify_jwt = false
+
+[functions.customer-api]
+verify_jwt = false
+
+[functions.booking-payment]
+verify_jwt = false
+
+[functions.wallet-booking]
+verify_jwt = false

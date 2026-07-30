@@ -1,4 +1,4 @@
-import { CalendarRange, CreditCard, ListChecks, Percent } from "lucide-react";
+import { CalendarRange, Clock3, CreditCard, ListChecks, PackageOpen, Percent } from "lucide-react";
 import { PageHead, buttonClass, inputClass } from "@/components/management-ui";
 import { Card } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -10,7 +10,7 @@ const field = (label:string,name:string,value:string,help?:string) => <label cla
 
 export default async function BookingConfigPage() {
   const db = await createClient();
-  const { data } = await db.from("settings").select("advance_percent,booking_event_types,booking_quantity_options,payment_content").eq("id",1).single();
+  const { data } = await db.from("settings").select("advance_percent,booking_event_types,booking_quantity_options,payment_content,minimum_notice_minutes,max_cans_per_day,empty_can_return_hours,lost_damaged_can_charge").eq("id",1).single();
   const payment = (data?.payment_content ?? {}) as Record<string,string>;
   return <><PageHead title="Booking Configuration" body="Control advance ratio, event types, quantity choices and customer payment instructions."/>
     <form action={saveBookingConfig} className="mt-6 space-y-5">
@@ -18,6 +18,29 @@ export default async function BookingConfigPage() {
         <Card className="p-5"><div className="flex items-center gap-3"><Percent className="h-6 w-6 text-brand"/><div><h2 className="font-extrabold text-ink">Advance rule</h2><p className="text-[11px] text-ink-muted">Balance is calculated automatically.</p></div></div><label className="mt-5 block text-[12px] font-bold text-ink">Advance percentage<input name="advance_percent" type="number" min="1" max="100" required defaultValue={data?.advance_percent ?? 30} className={inputClass}/></label><p className="mt-3 rounded-xl bg-tint p-3 text-[11px] text-ink-body">{data?.advance_percent ?? 30}% advance · {100-Number(data?.advance_percent ?? 30)}% balance</p></Card>
         <Card className="p-5"><div className="flex items-center gap-3"><CalendarRange className="h-6 w-6 text-brand"/><h2 className="font-extrabold text-ink">Event types</h2></div><div className="mt-4">{field("One option per line","event_types",((data?.booking_event_types as string[])??[]).join("\n"),"Shown in the booking form and Shop By Need mapping.")}</div></Card>
         <Card className="p-5"><div className="flex items-center gap-3"><ListChecks className="h-6 w-6 text-brand"/><h2 className="font-extrabold text-ink">Can quantities</h2></div><div className="mt-4">{field("One quantity per line","quantities",((data?.booking_quantity_options as number[])??[]).join("\n"),"Custom quantity is always available automatically.")}</div></Card>
+      </div>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <Card className="p-5">
+          <div className="flex items-center gap-3"><Clock3 className="h-6 w-6 text-brand"/><div><h2 className="font-extrabold text-ink">Booking notice & daily capacity</h2><p className="text-[11px] text-ink-muted">Today’s slots and fully-booked dates update automatically.</p></div></div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <label className="text-[12px] font-bold text-ink">Minimum advance notice
+              <select name="minimum_notice_minutes" defaultValue={data?.minimum_notice_minutes??60} className={inputClass}>
+                <option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option><option value="180">3 hours</option>
+              </select>
+            </label>
+            <label className="text-[12px] font-bold text-ink">Maximum cans per day
+              <input name="max_cans_per_day" type="number" min="1" required defaultValue={data?.max_cans_per_day??200} className={inputClass}/>
+              <span className="mt-1 block text-[10px] font-normal text-ink-faint">Effective limit is this value or usable stock, whichever is lower.</span>
+            </label>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <div className="flex items-center gap-3"><PackageOpen className="h-6 w-6 text-brand"/><div><h2 className="font-extrabold text-ink">Empty-can return policy</h2><p className="text-[11px] text-ink-muted">Applied to delivered cans and lost/damaged adjustments.</p></div></div>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <label className="text-[12px] font-bold text-ink">Return within (hours)<input name="empty_can_return_hours" type="number" min="1" required defaultValue={data?.empty_can_return_hours??48} className={inputClass}/></label>
+            <label className="text-[12px] font-bold text-ink">Lost/damaged charge per jar (₹)<input name="lost_damaged_can_charge" type="number" min="0" required defaultValue={data?.lost_damaged_can_charge??600} className={inputClass}/></label>
+          </div>
+        </Card>
       </div>
       <Card className="p-5"><div className="flex items-center gap-3"><CreditCard className="h-6 w-6 text-brand"/><div><h2 className="font-extrabold text-ink">Payment instructions</h2><p className="text-[11px] text-ink-muted">Use {"{advance}"}, {"{plant_name}"} and {"{plant_phone}"} as live placeholders.</p></div></div><div className="mt-5 grid gap-4 lg:grid-cols-2">
         {field("Advance warning","advance_warning",payment.advance_warning??"")}

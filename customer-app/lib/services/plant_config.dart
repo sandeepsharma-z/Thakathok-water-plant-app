@@ -36,6 +36,10 @@ class PlantConfig {
   String offerCode = 'SPLASH15';
   int offerDiscountPercent = 15;
   int offerMinSubtotal = 300;
+  int minimumNoticeMinutes = 60;
+  int maxCansPerDay = 200;
+  int emptyCanReturnHours = 48;
+  int lostDamagedCanCharge = 600;
 
   bool loaded = false;
 
@@ -67,6 +71,10 @@ class PlantConfig {
     offerCode = s.offerCode;
     offerDiscountPercent = s.offerDiscountPercent;
     offerMinSubtotal = s.offerMinSubtotal;
+    minimumNoticeMinutes = s.minimumNoticeMinutes;
+    maxCansPerDay = s.maxCansPerDay;
+    emptyCanReturnHours = s.emptyCanReturnHours;
+    lostDamagedCanCharge = s.lostDamagedCanCharge;
     loaded = true;
   }
 }

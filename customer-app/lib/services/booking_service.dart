@@ -22,7 +22,8 @@ class BookingService {
             'id,per_can_rate,delivery_charge,delivery_free_threshold,'
             'free_delivery_village,plant_name,plant_phone,razorpay_key_id,'
             'offer_enabled,offer_title,offer_description,offer_code,'
-            'offer_discount_percent,offer_min_subtotal',
+            'offer_discount_percent,offer_min_subtotal,minimum_notice_minutes,'
+            'max_cans_per_day,empty_can_return_hours,lost_damaged_can_charge',
           )
           .eq('id', 1)
           .maybeSingle();
@@ -90,24 +91,59 @@ class BookingService {
     required DateTime from,
     required DateTime to,
   }) async {
-    final rows = await _db
-        .from('blocked_dates')
-        .select('blocked_date')
-        .gte('blocked_date', _dateOnly(from))
-        .lte('blocked_date', _dateOnly(to));
-    return (rows as List)
-        .map((row) => '${(row as Map)['blocked_date']}')
+    final data = await CustomerApiService.instance.call(
+      'booking_unavailable_dates',
+      {'from': _dateOnly(from), 'to': _dateOnly(to)},
+    );
+    return List<dynamic>.from(data['dates'] as List? ?? const [])
+        .map((value) => '$value')
         .toSet();
   }
 
   Future<bool> isDateAvailable(DateTime date) async {
-    final row = await _db
-        .from('blocked_dates')
-        .select('blocked_date')
-        .eq('blocked_date', _dateOnly(date))
-        .limit(1)
-        .maybeSingle();
-    return row == null;
+    final result = await bookingAvailability(date, 0);
+    return !result.fullyBooked;
+  }
+
+  Future<BookingAvailability> bookingAvailability(
+      DateTime date, int cans) async {
+    final data = await CustomerApiService.instance.call(
+      'booking_availability',
+      {'event_date': _dateOnly(date), 'cans': cans},
+    );
+    return BookingAvailability.fromMap(data);
+  }
+
+  Future<void> requestCancellation({
+    required String bookingId,
+    required String reason,
+  }) async {
+    await CustomerApiService.instance.call('booking_request', {
+      'booking_id': bookingId,
+      'request_type': 'cancellation',
+      'reason': reason,
+    });
+  }
+
+  Future<void> requestBookingChange({
+    required String bookingId,
+    required String reason,
+    String? eventDate,
+    String? eventTime,
+    int? cans,
+    String? address,
+  }) async {
+    await CustomerApiService.instance.call('booking_request', {
+      'booking_id': bookingId,
+      'request_type': 'change',
+      'reason': reason,
+      if (eventDate != null && eventDate.isNotEmpty)
+        'proposed_event_date': eventDate,
+      if (eventTime != null && eventTime.isNotEmpty)
+        'proposed_event_time': eventTime,
+      if (cans != null && cans > 0) 'proposed_cans': cans,
+      if (address != null && address.isNotEmpty) 'proposed_address': address,
+    });
   }
 
   /// Persist a booking. Returns the created row's booking_code, or throws.
@@ -231,6 +267,10 @@ class AppSettings {
     required this.offerCode,
     required this.offerDiscountPercent,
     required this.offerMinSubtotal,
+    required this.minimumNoticeMinutes,
+    required this.maxCansPerDay,
+    required this.emptyCanReturnHours,
+    required this.lostDamagedCanCharge,
   });
 
   final int perCanRate;
@@ -248,6 +288,10 @@ class AppSettings {
   final String offerCode;
   final int offerDiscountPercent;
   final int offerMinSubtotal;
+  final int minimumNoticeMinutes;
+  final int maxCansPerDay;
+  final int emptyCanReturnHours;
+  final int lostDamagedCanCharge;
 
   factory AppSettings.fromMap(Map<String, dynamic> m) => AppSettings(
         perCanRate: (m['per_can_rate'] as num).toInt(),
@@ -265,5 +309,40 @@ class AppSettings {
         offerDiscountPercent:
             (m['offer_discount_percent'] as num?)?.toInt() ?? 15,
         offerMinSubtotal: (m['offer_min_subtotal'] as num?)?.toInt() ?? 300,
+        minimumNoticeMinutes:
+            (m['minimum_notice_minutes'] as num?)?.toInt() ?? 60,
+        maxCansPerDay: (m['max_cans_per_day'] as num?)?.toInt() ?? 200,
+        emptyCanReturnHours:
+            (m['empty_can_return_hours'] as num?)?.toInt() ?? 48,
+        lostDamagedCanCharge:
+            (m['lost_damaged_can_charge'] as num?)?.toInt() ?? 600,
+      );
+}
+
+class BookingAvailability {
+  const BookingAvailability({
+    required this.fullyBooked,
+    required this.canBook,
+    required this.booked,
+    required this.remaining,
+    required this.limit,
+    required this.minimumNoticeMinutes,
+  });
+  final bool fullyBooked;
+  final bool canBook;
+  final int booked;
+  final int remaining;
+  final int limit;
+  final int minimumNoticeMinutes;
+
+  factory BookingAvailability.fromMap(Map<String, dynamic> map) =>
+      BookingAvailability(
+        fullyBooked: map['fully_booked'] == true,
+        canBook: map['can_book'] == true,
+        booked: (map['booked'] as num?)?.toInt() ?? 0,
+        remaining: (map['remaining'] as num?)?.toInt() ?? 0,
+        limit: (map['limit'] as num?)?.toInt() ?? 200,
+        minimumNoticeMinutes:
+            (map['minimum_notice_minutes'] as num?)?.toInt() ?? 60,
       );
 }

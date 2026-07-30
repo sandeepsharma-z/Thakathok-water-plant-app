@@ -25,6 +25,8 @@ export default async function CansManagementPage() {
     { data: inventoryRows },
     { data: allocations },
     { data: movements },
+    { data: settings },
+    { data: todayBookings },
   ] =
     await Promise.all([
       db
@@ -50,6 +52,8 @@ export default async function CansManagementPage() {
         )
         .order("created_at", { ascending: false })
         .limit(30),
+      db.from("settings").select("max_cans_per_day,empty_can_return_hours,lost_damaged_can_charge").eq("id",1).single(),
+      db.from("bookings").select("cans").eq("event_date",new Date().toLocaleDateString("en-CA",{timeZone:"Asia/Kolkata"})).eq("status","confirmed"),
     ]);
 
   const inventoryByBranch = new Map(
@@ -78,6 +82,12 @@ export default async function CansManagementPage() {
   const withCustomers = activeAllocations.filter(
     (row) => row.state === "delivered",
   );
+  const todayBooked=(todayBookings??[]).reduce((total,row)=>total+Number(row.cans??0),0);
+  const usableStock=Math.max(sum("total_cans")-sum("damaged_cans"),0);
+  const effectiveDailyLimit=usableStock>0
+    ? Math.min(Number(settings?.max_cans_per_day??200),usableStock)
+    : Number(settings?.max_cans_per_day??200);
+  const todayRemaining=Math.max(effectiveDailyLimit-todayBooked,0);
 
   return (
     <>
@@ -86,7 +96,7 @@ export default async function CansManagementPage() {
         body="Automatic stock reservation, deliveries, customer returns, damage and complete movement history."
       />
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <StatTile label="Total cans" value={sum("total_cans")} icon="package" />
         <StatTile
           label="Available"
@@ -94,6 +104,8 @@ export default async function CansManagementPage() {
           icon="check"
           accent="ok"
         />
+        <StatTile label="Today's booked" value={todayBooked} icon="clipboard" accent="brand"/>
+        <StatTile label="Today's remaining" value={todayRemaining} icon="check" accent="ok"/>
         <StatTile
           label="Reserved"
           value={sum("reserved_cans")}
@@ -122,6 +134,9 @@ export default async function CansManagementPage() {
         <p className="mt-1 text-[12px] text-ink-muted">
           Every adjustment is recorded. Adding or repairing cans automatically
           reserves stock for the oldest waiting bookings.
+        </p>
+        <p className="mt-3 rounded-xl bg-tint px-3 py-2 text-[11px] font-semibold text-ink-body">
+          Daily booking capacity: {effectiveDailyLimit} cans · Empty cans due within {settings?.empty_can_return_hours??48} hours · Lost/damaged charge ₹{settings?.lost_damaged_can_charge??600} per jar
         </p>
         <InventoryAdjustmentForm
           branches={branches.map(({ id, name }) => ({ id, name }))}

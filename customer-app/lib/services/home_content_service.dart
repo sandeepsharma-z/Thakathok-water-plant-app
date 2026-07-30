@@ -128,7 +128,7 @@ class HomeContentService {
       SupportFaq(
         question: 'Is the advance refundable?',
         answer:
-            'No — the 30% advance is non-refundable. If you cancel, the date is not unblocked.',
+            'The 30% advance is non-refundable. Submit a cancellation request from My Bookings; after admin approval, the date and cans are released immediately.',
       ),
       SupportFaq(
         question: 'When is a delivery charge added?',

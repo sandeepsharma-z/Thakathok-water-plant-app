@@ -53,7 +53,7 @@ export default async function CalendarPage({
     <>
       <PageHead
         title="Blocked Dates"
-        body="Block unavailable event dates. Confirmed bookings are blocked automatically and cancelled bookings are released."
+        body="Block plant holidays or maintenance dates. Normal dates allow multiple bookings until daily can capacity is full."
       />
       <Card className="mt-5 p-5">
         <h2 className="font-extrabold text-ink">Block a date</h2>

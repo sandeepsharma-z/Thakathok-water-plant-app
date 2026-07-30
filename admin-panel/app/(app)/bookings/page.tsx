@@ -42,6 +42,10 @@ export default async function BookingsPage({
   }
   const { data, error } = await query.order("created_at", { ascending: false });
   const bookings = (data ?? []) as Booking[];
+  const {data:requestRows}=await supabase.from("booking_requests")
+    .select("id,booking_id,request_type,reason,created_at,proposed_event_date,proposed_event_time,proposed_cans,proposed_address")
+    .eq("status","pending").order("created_at",{ascending:true});
+  const requestsByBooking=new Map((requestRows??[]).map(request=>[request.booking_id,request]));
 
   return (
     <>
@@ -114,7 +118,7 @@ export default async function BookingsPage({
       ) : (
         <div className="mt-5 grid gap-4">
           {bookings.map((b, i) => (
-            <BookingCard key={b.id} booking={b} index={i} />
+            <BookingCard key={b.id} booking={b} request={requestsByBooking.get(b.id)} index={i} />
           ))}
         </div>
       )}

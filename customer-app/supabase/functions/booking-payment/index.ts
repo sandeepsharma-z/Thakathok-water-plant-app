@@ -44,7 +44,7 @@ Deno.serve(async(request)=>{
    }
    const grandTotal=subtotal-discount+deliveryCharge,advance=Math.round(grandTotal*Number(settings.advance_percent)/100),balance=grandTotal-advance;
    if(Number(input.expected_advance)!==advance)return json({error:"Pricing has changed. Go back, refresh the order and try again."},409);
-   const date=new Date(`${eventDate}T00:00:00Z`);const months=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];const bookingCode=`THK${cans}${months[date.getUTCMonth()]}${date.getUTCDate()}`;
+   const date=new Date(`${eventDate}T00:00:00Z`);const months=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];const suffix=crypto.randomUUID().replaceAll("-","").slice(0,4).toUpperCase();const bookingCode=`THK${cans}${months[date.getUTCMonth()]}${date.getUTCDate()}${suffix}`;
    const payload={booking_code:bookingCode,customer_name:name,event_type:eventType,cans,per_can_rate:rate,subtotal,delivery_charge:deliveryCharge,grand_total:grandTotal,advance,balance,village,mobile,address,event_date:eventDate,event_time:eventTime,offer_code:offerCode,offer_discount_percent:offerPercent,discount_amount:discount};
    const orderResponse=await fetch("https://api.razorpay.com/v1/orders",{method:"POST",headers:{Authorization:`Basic ${basic}`,"Content-Type":"application/json"},body:JSON.stringify({amount:advance*100,currency:"INR",receipt:`booking_${mobile}_${Date.now()}`.slice(0,40),notes:{purpose:"booking_advance",mobile,booking_code:bookingCode}})});
    const order=await orderResponse.json();

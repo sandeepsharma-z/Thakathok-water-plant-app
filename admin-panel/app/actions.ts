@@ -320,6 +320,44 @@ export async function cancelBooking(
   }
 }
 
+export async function reviewBookingRequest(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const requestId = String(formData.get("request_id") ?? "");
+  const decision = String(formData.get("decision") ?? "");
+  const note = String(formData.get("admin_note") ?? "").trim();
+  if (!requestId || !["approved", "rejected"].includes(decision)) {
+    return { error: "Invalid booking request action." };
+  }
+  try {
+    const supabase = await requireAdmin();
+    const { data, error } = await supabase.rpc("review_booking_request", {
+      p_request_id: requestId,
+      p_decision: decision,
+      p_admin_note: note,
+    });
+    if (error) {
+      const message = error.message.includes("DAILY_CAPACITY")
+        ? "The requested date does not have enough can capacity."
+        : error.message.includes("MINIMUM_NOTICE")
+          ? "The requested delivery time does not meet the minimum notice."
+          : error.message.includes("INSUFFICIENT_STOCK")
+            ? "Not enough physical stock is available for this quantity."
+            : "Could not review this request.";
+      return { error: message };
+    }
+    revalidatePath("/bookings");
+    revalidatePath("/cans");
+    revalidatePath("/");
+    return {
+      ok: `${(data as { type?: string })?.type === "cancellation" ? "Cancellation" : "Change"} request ${decision}.`,
+    };
+  } catch {
+    return { error: "Could not review this request." };
+  }
+}
+
 /** Save/edit a customer's name & note (keyed by mobile). */
 export async function saveCustomer(
   _prev: ActionState,
