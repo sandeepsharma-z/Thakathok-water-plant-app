@@ -6,6 +6,7 @@ import '../services/booking_payment_service.dart';
 import '../services/booking_service.dart';
 import '../services/plant_config.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import '../services/wallet_booking_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
@@ -130,7 +131,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                 ],
                 const Divider(height: 22),
-                _row('Total', '₹${order.grandTotal}', bold: true),
+                _row(tr('Total'), '₹${order.grandTotal}', bold: true),
               ],
             ),
           ),
@@ -185,7 +186,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: AppColors.liveBrand),
                             )
-                          : Text(order.hasDiscount ? 'Remove' : 'Apply'),
+                          : Text(tr(order.hasDiscount ? 'Remove' : 'Apply')),
                     ),
                   ],
                 ),

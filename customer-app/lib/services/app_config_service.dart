@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'language_service.dart';
+
 class AppConfigService extends ChangeNotifier {
   AppConfigService._();
   static final instance = AppConfigService._();
@@ -108,8 +110,8 @@ class AppConfigService extends ChangeNotifier {
   };
 
   int get balancePercent => 100 - advancePercent;
-  String label(String key) => labels[key] ?? key;
-  String paymentText(String key) => payment[key] ?? key;
+  String label(String key) => tr(labels[key] ?? key);
+  String paymentText(String key) => tr(payment[key] ?? key);
 
   Future<void> load() async {
     try {

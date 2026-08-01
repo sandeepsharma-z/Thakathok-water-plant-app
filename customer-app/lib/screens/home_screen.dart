@@ -11,6 +11,7 @@ import '../services/profile_store.dart';
 import '../services/notification_store.dart';
 import '../services/auth_service.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
 import '../widgets/content_image.dart';
@@ -273,8 +274,9 @@ class _HomeScreenState extends State<HomeScreen>
                               ],
                               const SizedBox(height: _kGap),
                               _SectionHeader(
-                                title: AppConfigService.instance.popularHeading,
-                                trailing: 'View All',
+                                title: tr(
+                                    AppConfigService.instance.popularHeading),
+                                trailing: tr('View All'),
                                 onTrailingTap: () => Navigator.of(context).push(
                                   MaterialPageRoute(
                                     builder: (_) =>
@@ -859,7 +861,7 @@ class _Greeting extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 2),
-          Text(AppConfigService.instance.greetingTagline,
+          Text(tr(AppConfigService.instance.greetingTagline),
               style: const TextStyle(fontSize: 11.5, color: AppColors.body)),
         ],
       ),
@@ -889,16 +891,16 @@ class _QuickActions extends StatelessWidget {
         <({IconData icon, String title, String subtitle, VoidCallback onTap})>[
       (
         icon: Icons.water_drop_rounded,
-        title: copy[0]['title']!,
-        subtitle: copy[0]['subtitle']!,
+        title: tr(copy[0]['title']!),
+        subtitle: tr(copy[0]['subtitle']!),
         onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const BulkOrderFormScreen()),
             ),
       ),
       (
         icon: Icons.sync_rounded,
-        title: copy[1]['title']!,
-        subtitle: copy[1]['subtitle']!,
+        title: tr(copy[1]['title']!),
+        subtitle: tr(copy[1]['subtitle']!),
         onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => MyBookingsScreen(initialMobile: profile.mobile),
@@ -907,8 +909,8 @@ class _QuickActions extends StatelessWidget {
       ),
       (
         icon: Icons.receipt_long_rounded,
-        title: copy[2]['title']!,
-        subtitle: copy[2]['subtitle']!,
+        title: tr(copy[2]['title']!),
+        subtitle: tr(copy[2]['subtitle']!),
         onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => MyBookingsScreen(initialMobile: profile.mobile),
@@ -917,14 +919,14 @@ class _QuickActions extends StatelessWidget {
       ),
       (
         icon: Icons.account_balance_wallet_rounded,
-        title: copy[3]['title']!,
-        subtitle: copy[3]['subtitle']!,
+        title: tr(copy[3]['title']!),
+        subtitle: tr(copy[3]['subtitle']!),
         onTap: onOpenWallet,
       ),
       (
         icon: Icons.headset_mic_rounded,
-        title: copy[4]['title']!,
-        subtitle: copy[4]['subtitle']!,
+        title: tr(copy[4]['title']!),
+        subtitle: tr(copy[4]['subtitle']!),
         onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
             ),
@@ -1037,11 +1039,11 @@ class _WalletDuesRow extends StatelessWidget {
                 icon: Icons.account_balance_wallet_rounded,
                 iconBg: AppColors.tint,
                 iconColor: AppColors.liveBrand,
-                title: 'Wallet Balance',
+                title: tr('Wallet Balance'),
                 titleColor: AppColors.liveBrand,
                 amount: '₹$walletBalance',
                 paise: '.00',
-                action: 'Add Money',
+                action: tr('Add Money'),
                 actionFilled: true,
                 onAction: onOpenWallet,
               ),
@@ -1052,11 +1054,11 @@ class _WalletDuesRow extends StatelessWidget {
                 icon: Icons.receipt_long_rounded,
                 iconBg: Color(0xFFFDECEC),
                 iconColor: Color(0xFFE23D3D),
-                title: 'Pending Dues',
+                title: tr('Pending Dues'),
                 titleColor: const Color(0xFFE23D3D),
                 amount: '₹$pendingDues',
                 paise: '.00',
-                action: 'View Details',
+                action: tr('View Details'),
                 actionFilled: false,
                 onAction: () => Navigator.of(context).push(
                   MaterialPageRoute(
@@ -2005,7 +2007,7 @@ class _ShopByNeed extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: _kPad),
           child: Row(
             children: [
-              Text(AppConfigService.instance.shopHeading,
+              Text(tr(AppConfigService.instance.shopHeading),
                   style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,

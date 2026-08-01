@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/booking_service.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dotted_loader.dart';
 
@@ -192,7 +193,7 @@ class _BookingTileState extends State<_BookingTile> {
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Request Cancellation'),
+        title: Text(tr('Request Cancellation')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           const Text(
               'The 30% advance is non-refundable. Admin approval is required.'),
@@ -232,7 +233,7 @@ class _BookingTileState extends State<_BookingTile> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Request for Change'),
+          title: Text(tr('Request for Change')),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               const Text(
@@ -379,9 +380,9 @@ class _BookingTileState extends State<_BookingTile> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _amt('Total', '₹${b['grand_total']}'),
-              _amt('Advance', '₹${b['advance']}', accent: true),
-              _amt('Balance', '₹${b['balance']}'),
+              _amt(tr('Total'), '₹${b['grand_total']}'),
+              _amt(tr('Advance'), '₹${b['advance']}', accent: true),
+              _amt(tr('Balance'), '₹${b['balance']}'),
             ],
           ),
           if (_pendingRequest != null) ...[
@@ -412,7 +413,7 @@ class _BookingTileState extends State<_BookingTile> {
                   child: OutlinedButton.icon(
                     onPressed: _working ? null : _changeRequest,
                     icon: const Icon(Icons.edit_calendar_outlined, size: 17),
-                    label: const Text('Change Request',
+                    label: Text(tr('Change Request'),
                         maxLines: 1,
                         overflow: TextOverflow.fade,
                         softWrap: false),
@@ -437,7 +438,7 @@ class _BookingTileState extends State<_BookingTile> {
                   child: OutlinedButton.icon(
                     onPressed: _working ? null : _cancelRequest,
                     icon: const Icon(Icons.cancel_outlined, size: 17),
-                    label: const Text('Cancel Request',
+                    label: Text(tr('Cancel Request'),
                         maxLines: 1,
                         overflow: TextOverflow.fade,
                         softWrap: false),

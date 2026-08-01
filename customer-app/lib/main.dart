@@ -9,6 +9,7 @@ import 'services/auth_service.dart';
 import 'services/home_content_service.dart';
 import 'services/plant_config.dart';
 import 'services/app_config_service.dart';
+import 'services/language_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +21,7 @@ Future<void> main() async {
   // Pull live rate / delivery / contact from the admin-controlled settings.
   // Short timeout so a slow network never blocks app start (defaults kick in).
   try {
+    await LanguageService.instance.load();
     await Future.wait([
       PlantConfig.instance.load(),
       HomeContentService.instance.load(),
@@ -47,12 +49,14 @@ class _ThakaThokAppState extends State<ThakaThokApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _config.addListener(_rebuildForConfig);
+    LanguageService.instance.addListener(_rebuildForConfig);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _config.removeListener(_rebuildForConfig);
+    LanguageService.instance.removeListener(_rebuildForConfig);
     super.dispose();
   }
 

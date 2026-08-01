@@ -5,6 +5,7 @@ import '../models/order_details.dart';
 import '../services/auth_service.dart';
 import '../services/app_config_service.dart';
 import '../services/booking_service.dart';
+import '../services/language_service.dart';
 import '../services/plant_config.dart';
 import '../services/profile_store.dart';
 import '../theme/app_colors.dart';
@@ -186,9 +187,9 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
       return !value.isBefore(earliest);
     }).toList();
     if (slots.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'No delivery slots remain today. Please choose another date.')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr(
+              'No delivery slots remain today. Please choose another date.'))));
       return;
     }
     final picked = await showModalBottomSheet<TimeOfDay>(
@@ -199,7 +200,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
         child: SizedBox(
           height: MediaQuery.sizeOf(sheetContext).height * .72,
           child: Column(children: [
-            Text('Select Required Delivery Time',
+            Text(tr('Select Required Delivery Time'),
                 style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700, color: AppColors.liveBrand)),
             Padding(
@@ -381,16 +382,16 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Fill in your event details to request a bulk water order.',
-              style: TextStyle(fontSize: 12.5, color: AppColors.body),
+            Text(
+              tr('Fill in your event details to request a bulk water order.'),
+              style: const TextStyle(fontSize: 12.5, color: AppColors.body),
             ),
             const SizedBox(height: 22),
 
             // 1. Event Type
-            _FieldLabel('Event Type'),
+            _FieldLabel(tr('Event Type')),
             _Dropdown(
-              hint: 'Select event type',
+              hint: tr('Select event type'),
               value: _eventType,
               items: kEventTypes,
               onChanged: (v) => setState(() => _eventType = v),
@@ -398,9 +399,9 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
             const SizedBox(height: 18),
 
             // 2. Number of Cans
-            _FieldLabel('Number of Cans'),
+            _FieldLabel(tr('Number of Cans')),
             _Dropdown(
-              hint: 'Select number of cans',
+              hint: tr('Select number of cans'),
               value: _cansChoice,
               items: kCanOptions,
               onChanged: (v) => setState(() => _cansChoice = v),
@@ -412,7 +413,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 onChanged: (_) => setState(() {}),
-                decoration: _inputDecoration('Enter number of cans'),
+                decoration: _inputDecoration(tr('Enter number of cans')),
                 validator: (v) {
                   if (_cansChoice != 'Custom') return null;
                   final n = int.tryParse((v ?? '').trim()) ?? 0;
@@ -430,7 +431,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _FieldLabel('Per Can Rate'),
+                      _FieldLabel(tr('Per Can Rate')),
                       _ReadOnlyBox('₹ $kPerCanRate / Can'),
                     ],
                   ),
@@ -440,7 +441,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _FieldLabel('Total Amount'),
+                      _FieldLabel(tr('Total Amount')),
                       _ReadOnlyBox(
                         _cans > 0 ? '₹ $_total' : '₹ 0',
                         highlight: true,
@@ -453,14 +454,14 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
             const SizedBox(height: 18),
 
             // 5. Event Date + Time
-            _FieldLabel('Event Date & Time'),
+            _FieldLabel(tr('Event Date & Time')),
             Row(
               children: [
                 Expanded(
                   child: _PickerBox(
                     icon: Icons.calendar_month_rounded,
                     text: _eventDate == null
-                        ? 'Select date'
+                        ? tr('Select date')
                         : _formatDate(_eventDate!),
                     filled: _eventDate != null,
                     onTap: _pickDate,
@@ -471,7 +472,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                   child: _PickerBox(
                     icon: Icons.access_time_rounded,
                     text: _eventTime == null
-                        ? 'Select time'
+                        ? tr('Select time')
                         : _eventTime!.format(context),
                     filled: _eventTime != null,
                     onTap: _pickTime,
@@ -482,7 +483,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
             const SizedBox(height: 18),
 
             // 6. Mobile Number
-            _FieldLabel('Mobile Number'),
+            _FieldLabel(tr('Mobile Number')),
             TextFormField(
               controller: _mobileController,
               readOnly: true,
@@ -509,9 +510,9 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
             const SizedBox(height: 18),
 
             // 7. Village / Area
-            _FieldLabel('Village / Area'),
+            _FieldLabel(tr('Village / Area')),
             _Dropdown(
-              hint: 'Select your village',
+              hint: tr('Select your village'),
               value: _village,
               items: kVillages,
               onChanged: (v) => setState(() => _village = v),
@@ -519,12 +520,12 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
             const SizedBox(height: 18),
 
             // 8. Address / Hall Name
-            _FieldLabel('Address / Hall Name'),
+            _FieldLabel(tr('Address / Hall Name')),
             TextFormField(
               controller: _addressController,
               maxLines: 3,
               textInputAction: TextInputAction.done,
-              decoration: _inputDecoration('Enter address or hall name'),
+              decoration: _inputDecoration(tr('Enter address or hall name')),
               validator: (v) {
                 if ((v ?? '').trim().isEmpty) {
                   return 'Please enter an address or hall name';

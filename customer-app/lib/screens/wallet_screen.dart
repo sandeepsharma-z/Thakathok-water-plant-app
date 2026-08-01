@@ -5,6 +5,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../services/auth_service.dart';
 import '../services/wallet_service.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 
 class WalletScreen extends StatefulWidget {
@@ -213,7 +214,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Available Balance',
+                          tr('Available Balance'),
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 13,
@@ -327,9 +328,9 @@ class _WalletScreenState extends State<WalletScreen> {
                     ),
                   ),
                   const SizedBox(height: 22),
-                  const Text(
-                    'Transaction History',
-                    style: TextStyle(
+                  Text(
+                    tr('Transaction History'),
+                    style: const TextStyle(
                       color: AppColors.textDark,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -426,9 +427,9 @@ class _EmptyTransactions extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.hairline),
       ),
-      child: const Text(
-        'No wallet transactions yet',
-        style: TextStyle(color: AppColors.body, fontSize: 13),
+      child: Text(
+        tr('No wallet transactions yet'),
+        style: const TextStyle(color: AppColors.body, fontSize: 13),
       ),
     );
   }

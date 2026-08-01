@@ -9,6 +9,8 @@ import '../services/profile_store.dart';
 import '../services/app_config_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dotted_loader.dart';
+import '../widgets/language_selector.dart';
+import '../services/language_service.dart';
 import 'bulk_order_form_screen.dart' show kVillages;
 
 /// Customer profile — saved on this device (no login needed). Starts empty
@@ -92,7 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     setState(() => _editing = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Profile saved.')),
+      SnackBar(content: Text(tr('Profile saved.'))),
     );
   }
 
@@ -112,7 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Profile photo',
+              Text(tr('Profile photo'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 18,
@@ -124,7 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: _PhotoOption(
                       icon: Icons.photo_library_outlined,
-                      label: 'Gallery',
+                      label: tr('Gallery'),
                       onTap: () {
                         Navigator.pop(sheetContext);
                         _pickAvatar(ImageSource.gallery);
@@ -135,7 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Expanded(
                     child: _PhotoOption(
                       icon: Icons.photo_camera_outlined,
-                      label: 'Camera',
+                      label: tr('Camera'),
                       onTap: () {
                         Navigator.pop(sheetContext);
                         _pickAvatar(ImageSource.camera);
@@ -152,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _removeAvatar();
                   },
                   icon: const Icon(Icons.delete_outline_rounded),
-                  label: const Text('Remove current photo'),
+                  label: Text(tr('Remove current photo')),
                   style: TextButton.styleFrom(
                     foregroundColor: Colors.red,
                     padding: const EdgeInsets.symmetric(vertical: 13),
@@ -324,11 +326,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 fontWeight: FontWeight.w700,
                 fontSize: 19)),
         actions: [
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 7),
+            child: LanguageSelector(compact: true),
+          ),
           if (!_editing)
             TextButton.icon(
               onPressed: () => setState(() => _editing = true),
               icon: const Icon(Icons.edit_outlined, size: 17),
-              label: Text('Edit'),
+              label: Text(tr('Edit')),
               style: TextButton.styleFrom(foregroundColor: AppColors.liveBrand),
             ),
         ],
@@ -416,13 +422,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         TextButton(
                           onPressed:
                               _uploadingAvatar ? null : _showPhotoOptions,
-                          child: Text(_avatarUrl.isEmpty
+                          child: Text(tr(_avatarUrl.isEmpty
                               ? 'Add photo'
-                              : 'Change photo'),
+                              : 'Change photo')),
                         ),
                         Text(
                             _name.text.trim().isEmpty
-                                ? 'Your Profile'
+                                ? tr('Your Profile')
                                 : _name.text,
                             style: const TextStyle(
                                 fontSize: 18,
@@ -437,7 +443,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 26),
 
-                  const _Label('Full Name'),
+                  _Label(tr('Full Name')),
                   TextFormField(
                     controller: _name,
                     enabled: _editing,
@@ -447,7 +453,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 18),
 
-                  const _Label('Mobile Number'),
+                  _Label(tr('Mobile Number')),
                   TextFormField(
                     controller: _mobile,
                     enabled: false,
@@ -469,7 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 18),
 
-                  const _Label('Village / Area'),
+                  _Label(tr('Village / Area')),
                   DropdownButtonFormField<String>(
                     initialValue: _village,
                     isExpanded: true,
@@ -484,7 +490,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   const SizedBox(height: 18),
 
-                  const _Label('Address / Hall Name'),
+                  _Label(tr('Address / Hall Name')),
                   TextFormField(
                     controller: _address,
                     enabled: _editing,
@@ -507,7 +513,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
-                        child: const Text('SAVE CHANGES',
+                        child: Text(tr('SAVE CHANGES'),
                             style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,

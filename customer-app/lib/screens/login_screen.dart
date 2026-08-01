@@ -5,6 +5,7 @@ import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
+import '../widgets/language_selector.dart';
 import 'splash_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -78,6 +79,11 @@ class _LoginScreenState extends State<LoginScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 42, 24, 30),
             children: [
+              const Align(
+                alignment: Alignment.centerRight,
+                child: LanguageSelector(compact: true),
+              ),
+              const SizedBox(height: 12),
               const Center(child: BrandLogo(size: 76)),
               const SizedBox(height: 24),
               Text(
