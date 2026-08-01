@@ -8,6 +8,7 @@ export function DeliveryForm({bookingId,balance,cans,locale}:{bookingId:string;b
   const[state,action,pending]=useActionState<FormState,FormData>(completeDelivery,{});
   const canvas=useRef<HTMLCanvasElement>(null);const[drawing,setDrawing]=useState(false);
   const[cashInput,setCashInput]=useState("");
+  const[returnedCansInput,setReturnedCansInput]=useState("");
   const cashCollected=Number(cashInput)||0;
   const remainingBalance=Math.max(0,balance-cashCollected);
   const point=(e:React.PointerEvent<HTMLCanvasElement>)=>{const r=e.currentTarget.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};};
@@ -17,7 +18,7 @@ export function DeliveryForm({bookingId,balance,cans,locale}:{bookingId:string;b
     <input type="hidden" name="booking_id" value={bookingId}/>
     <div className="grid gap-3 sm:grid-cols-2">
       <label className="rounded-2xl bg-blue-50/60 p-3 text-xs font-bold"><span className="flex gap-2"><Wallet className="h-4 w-4 text-blue-600"/>{t(locale,"Cash Collected")}</span><input name="cash_collected" type="number" inputMode="numeric" min="0" max={balance} value={cashInput} placeholder="0" onChange={(event)=>{const raw=event.target.value;if(raw===""){setCashInput("");return;}setCashInput(raw.replace(/^0+(?=\d)/,""));}} className="mt-2 h-11 w-full rounded-xl border border-blue-100 bg-white px-3 outline-none"/><small className="font-normal text-slate-500">{t(locale,"Pending")}: ₹{remainingBalance}</small></label>
-      <label className="rounded-2xl bg-blue-50/60 p-3 text-xs font-bold"><span className="flex gap-2"><PackageCheck className="h-4 w-4 text-blue-600"/>{t(locale,"Empty Cans Returned")}</span><input name="empty_cans_returned" type="number" min="0" max={cans} defaultValue={0} className="mt-2 h-11 w-full rounded-xl border border-blue-100 bg-white px-3 outline-none"/></label>
+      <label className="rounded-2xl bg-blue-50/60 p-3 text-xs font-bold"><span className="flex gap-2"><PackageCheck className="h-4 w-4 text-blue-600"/>{t(locale,"Empty Cans Returned")}</span><input name="empty_cans_returned" type="number" inputMode="numeric" min="0" max={cans} value={returnedCansInput} placeholder="0" onChange={(event)=>{const raw=event.target.value;if(raw===""){setReturnedCansInput("");return;}setReturnedCansInput(raw.replace(/^0+(?=\d)/,""));}} className="mt-2 h-11 w-full rounded-xl border border-blue-100 bg-white px-3 outline-none"/></label>
     </div>
     <label className="block rounded-2xl border border-blue-100 p-3 text-xs font-bold"><span className="flex gap-2"><Camera className="h-4 w-4 text-blue-600"/>{t(locale,"Delivery Photo (optional)")}</span><input name="proof_photo" type="file" accept="image/*" capture="environment" className="mt-2 block w-full text-xs"/></label>
     <div className="rounded-2xl border border-blue-100 p-3"><p className="mb-2 flex gap-2 text-xs font-bold"><PenLine className="h-4 w-4 text-blue-600"/>{t(locale,"Customer Signature (optional)")}</p><canvas ref={canvas} onPointerDown={start} onPointerMove={move} onPointerUp={()=>setDrawing(false)} onPointerCancel={()=>setDrawing(false)} className="h-28 w-full touch-none rounded-xl bg-blue-50/60"/></div>
