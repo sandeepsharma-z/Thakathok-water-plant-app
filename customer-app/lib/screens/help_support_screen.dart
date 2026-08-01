@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/home_content_service.dart';
 import '../services/plant_config.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 
 String get kPlantPhone => PlantConfig.instance.plantPhone;
@@ -20,9 +21,20 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
   @override
   void initState() {
     super.initState();
+    LanguageService.instance.addListener(_onLanguageChanged);
     HomeContentService.instance.load().then((_) {
       if (mounted) setState(() {});
     });
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    LanguageService.instance.removeListener(_onLanguageChanged);
+    super.dispose();
   }
 
   Future<void> _call() async {
@@ -72,7 +84,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  content.heading,
+                  tr(content.heading),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -81,7 +93,8 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  content.description.replaceAll('{plant_name}', kPlantName),
+                  tr(content.description)
+                      .replaceAll('{plant_name}', kPlantName),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 12.5,
@@ -93,7 +106,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     Expanded(
                       child: _ContactBtn(
                         icon: Icons.call_rounded,
-                        label: 'Call',
+                        label: tr('Call'),
                         onTap: _call,
                       ),
                     ),
@@ -101,7 +114,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     Expanded(
                       child: _ContactBtn(
                         icon: Icons.chat_rounded,
-                        label: 'WhatsApp',
+                        label: tr('WhatsApp'),
                         onTap: _whatsapp,
                       ),
                     ),
@@ -112,7 +125,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            content.sectionTitle,
+            tr(content.sectionTitle),
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -121,7 +134,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
           ),
           const SizedBox(height: 8),
           for (final faq in content.faqs)
-            _FaqItem(question: faq.question, answer: faq.answer),
+            _FaqItem(question: tr(faq.question), answer: tr(faq.answer)),
           const SizedBox(height: 20),
           Center(
             child: Text(

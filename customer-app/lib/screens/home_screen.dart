@@ -53,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    LanguageService.instance.addListener(_onLanguageChanged);
     _refreshController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 850),
@@ -86,9 +87,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   void dispose() {
+    LanguageService.instance.removeListener(_onLanguageChanged);
     _notificationPoller?.cancel();
     _refreshController.dispose();
     super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadProfile() async {
@@ -833,9 +839,9 @@ class _Greeting extends StatelessWidget {
 
   String get _timeOfDay {
     final h = DateTime.now().hour;
-    if (h < 12) return 'Good Morning';
-    if (h < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (h < 12) return tr('Good Morning');
+    if (h < 17) return tr('Good Afternoon');
+    return tr('Good Evening');
   }
 
   @override
@@ -872,7 +878,7 @@ class _Greeting extends StatelessWidget {
 // ── Wallet balance + pending dues ─────────────────────────────────────
 String _firstName(String fullName) {
   final trimmed = fullName.trim();
-  return trimmed.isEmpty ? 'Customer' : trimmed.split(RegExp(r'\s+')).first;
+  return trimmed.isEmpty ? tr('Customer') : trimmed.split(RegExp(r'\s+')).first;
 }
 
 class _QuickActions extends StatelessWidget {
@@ -1721,13 +1727,13 @@ class _OfferCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(title,
+                  Text(tr(title),
                       style: TextStyle(
                           color: AppColors.liveBrand,
                           fontWeight: FontWeight.w600,
                           fontSize: 15)),
                   const SizedBox(height: 3),
-                  Text(description,
+                  Text(tr(description),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -1765,7 +1771,7 @@ class _DashedCodeBox extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Use Code',
+            Text(tr('Use Code'),
                 style: TextStyle(fontSize: 8.5, color: AppColors.body)),
             Text(code,
                 style: TextStyle(

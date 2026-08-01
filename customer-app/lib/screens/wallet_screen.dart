@@ -32,6 +32,7 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
+    LanguageService.instance.addListener(_onLanguageChanged);
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError);
@@ -40,9 +41,14 @@ class _WalletScreenState extends State<WalletScreen> {
 
   @override
   void dispose() {
+    LanguageService.instance.removeListener(_onLanguageChanged);
     _razorpay.clear();
     _amount.dispose();
     super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _load() async {
@@ -146,7 +152,7 @@ class _WalletScreenState extends State<WalletScreen> {
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Money added to wallet successfully.')),
+        SnackBar(content: Text(tr('Money added to wallet successfully.'))),
       );
     } catch (error) {
       if (mounted) {
@@ -243,9 +249,9 @@ class _WalletScreenState extends State<WalletScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Add Money',
-                          style: TextStyle(
+                        Text(
+                          tr('Add Money'),
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                             color: AppColors.textDark,
@@ -261,7 +267,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           ],
                           decoration: InputDecoration(
                             prefixText: '₹ ',
-                            hintText: 'Enter amount',
+                            hintText: tr('Enter amount'),
                             filled: true,
                             fillColor: const Color(0xFFF5F9FF),
                             border: OutlineInputBorder(
@@ -307,10 +313,10 @@ class _WalletScreenState extends State<WalletScreen> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text(
-                                    'ADD MONEY SECURELY',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w800),
+                                : Text(
+                                    tr('ADD MONEY SECURELY'),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w800),
                                   ),
                           ),
                         ),
@@ -387,7 +393,7 @@ class _TransactionTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${transaction['description'] ?? 'Wallet transaction'}',
+                  tr('${transaction['description'] ?? 'Wallet transaction'}'),
                   style: const TextStyle(
                     color: AppColors.textDark,
                     fontSize: 13,

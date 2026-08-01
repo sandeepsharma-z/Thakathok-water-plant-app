@@ -34,9 +34,9 @@ class LanguageService extends ChangeNotifier {
   Future<void> setLanguage(AppLanguage value) async {
     if (language == value) return;
     language = value;
+    notifyListeners();
     await (await SharedPreferences.getInstance())
         .setString(_storageKey, value.name);
-    notifyListeners();
   }
 
   String tr(String english) {
@@ -128,6 +128,69 @@ class LanguageService extends ChangeNotifier {
     'Cancel Request': 'रद्द अनुरोध',
     'Transaction History': 'लेनदेन इतिहास',
     'No wallet transactions yet': 'अभी कोई वॉलेट लेनदेन नहीं',
+    'Good Morning': 'सुप्रभात',
+    'Good Afternoon': 'नमस्कार',
+    'Good Evening': 'शुभ संध्या',
+    'Customer': 'ग्राहक',
+    'Weekend Splash Offer': 'वीकेंड स्प्लैश ऑफर',
+    'Get up to 15% OFF on all orders above Rs.300':
+        '₹300 से अधिक के सभी ऑर्डर पर 15% तक की छूट पाएँ',
+    'Use Code': 'कोड लगाएँ',
+    'Your account booking history': 'आपके खाते की बुकिंग हिस्ट्री',
+    'No bookings found': 'कोई बुकिंग नहीं मिली',
+    'No bookings are linked to this account yet. Place a bulk order to get started.':
+        'इस खाते से अभी कोई बुकिंग जुड़ी नहीं है। शुरू करने के लिए बल्क ऑर्डर करें।',
+    'Event': 'कार्यक्रम',
+    'Date': 'तारीख',
+    'Village': 'गाँव',
+    'Offer': 'ऑफर',
+    'cans': 'कैन',
+    'Wedding': 'शादी',
+    'Birthday': 'जन्मदिन',
+    'Other': 'अन्य',
+    'PENDING': 'लंबित',
+    'CONFIRMED': 'पुष्ट',
+    'CANCELLED': 'रद्द',
+    'DELIVERED': 'डिलीवर',
+    'The 30% advance is non-refundable. Admin approval is required.':
+        '30% अग्रिम वापस नहीं होगा। एडमिन की मंजूरी आवश्यक है।',
+    'Reason for cancellation': 'रद्द करने का कारण',
+    'Close': 'बंद करें',
+    'Submit Request': 'अनुरोध भेजें',
+    'Enter only the details you want changed. Admin approval is required.':
+        'केवल वही विवरण भरें जिन्हें बदलना है। एडमिन की मंजूरी आवश्यक है।',
+    'New date': 'नई तारीख',
+    'New time': 'नया समय',
+    'New quantity': 'नई मात्रा',
+    'New address': 'नया पता',
+    'Reason for change *': 'बदलाव का कारण *',
+    'Request submitted to admin.': 'अनुरोध एडमिन को भेज दिया गया।',
+    'Enter amount': 'राशि दर्ज करें',
+    'ADD MONEY SECURELY': 'सुरक्षित रूप से पैसे जोड़ें',
+    'Wallet transaction': 'वॉलेट लेनदेन',
+    'Wallet top-up via Razorpay': 'रेज़रपे से वॉलेट में पैसे जोड़े',
+    'Money added to wallet successfully.':
+        'वॉलेट में पैसे सफलतापूर्वक जुड़ गए।',
+    'Call': 'कॉल करें',
+    'Need help with an order?': 'ऑर्डर में सहायता चाहिए?',
+    'Reach out to {plant_name} directly.': 'सीधे {plant_name} से संपर्क करें।',
+    'Frequently asked': 'अक्सर पूछे जाने वाले प्रश्न',
+    'How do I place a bulk order?': 'मैं बल्क ऑर्डर कैसे करूँ?',
+    'Tap "Request Bulk Order" on the home screen, fill in your event details, and pay the 30% advance to confirm.':
+        'होम स्क्रीन पर "बल्क ऑर्डर का अनुरोध" दबाएँ, विवरण भरें और पुष्टि के लिए 30% अग्रिम दें।',
+    'Why do I pay 30% advance?': 'मैं 30% अग्रिम क्यों देता हूँ?',
+    'The 30% advance confirms your booking and blocks your event date. The remaining 70% is paid as cash on delivery.':
+        '30% अग्रिम आपकी बुकिंग की पुष्टि करता है। शेष 70% डिलीवरी पर नकद दिया जाता है।',
+    'Is the advance refundable?': 'क्या अग्रिम वापस मिलता है?',
+    'The 30% advance is non-refundable. Submit a cancellation request from My Bookings; after admin approval, the date and cans are released immediately.':
+        '30% अग्रिम वापस नहीं होगा। मेरी बुकिंग से रद्द करने का अनुरोध भेजें; मंजूरी के बाद तारीख और कैन तुरंत उपलब्ध हो जाएंगे।',
+    'When is a delivery charge added?': 'डिलीवरी शुल्क कब लगता है?',
+    'How will I know my booking is confirmed?':
+        'बुकिंग की पुष्टि कैसे पता चलेगी?',
+    'A delivery charge applies only to orders under 25 cans, for every village except Kasara Balkunda (which is free).':
+        '25 कैन से कम के ऑर्डर पर डिलीवरी शुल्क लगता है; कसारा बालकुंडा में डिलीवरी मुफ्त है।',
+    'Online payments confirm instantly. For cash, the plant confirms once the advance is received — you can track it under "My Bookings".':
+        'ऑनलाइन भुगतान तुरंत पुष्ट होता है। नकद में अग्रिम मिलने के बाद प्लांट पुष्टि करता है—इसे "मेरी बुकिंग" में देखें।',
     'Logout': 'लॉग आउट',
   };
 
@@ -214,6 +277,69 @@ class LanguageService extends ChangeNotifier {
     'Cancel Request': 'रद्द विनंती',
     'Transaction History': 'व्यवहार इतिहास',
     'No wallet transactions yet': 'अजून वॉलेट व्यवहार नाहीत',
+    'Good Morning': 'शुभ सकाळ',
+    'Good Afternoon': 'शुभ दुपार',
+    'Good Evening': 'शुभ संध्याकाळ',
+    'Customer': 'ग्राहक',
+    'Weekend Splash Offer': 'वीकेंड स्प्लॅश ऑफर',
+    'Get up to 15% OFF on all orders above Rs.300':
+        '₹300 पेक्षा जास्त सर्व ऑर्डरवर 15% पर्यंत सूट मिळवा',
+    'Use Code': 'कोड वापरा',
+    'Your account booking history': 'तुमच्या खात्याचा बुकिंग इतिहास',
+    'No bookings found': 'कोणतीही बुकिंग आढळली नाही',
+    'No bookings are linked to this account yet. Place a bulk order to get started.':
+        'या खात्याशी अजून कोणतीही बुकिंग जोडलेली नाही. सुरुवात करण्यासाठी मोठी ऑर्डर करा.',
+    'Event': 'कार्यक्रम',
+    'Date': 'तारीख',
+    'Village': 'गाव',
+    'Offer': 'ऑफर',
+    'cans': 'कॅन',
+    'Wedding': 'लग्न',
+    'Birthday': 'वाढदिवस',
+    'Other': 'इतर',
+    'PENDING': 'प्रलंबित',
+    'CONFIRMED': 'निश्चित',
+    'CANCELLED': 'रद्द',
+    'DELIVERED': 'वितरित',
+    'The 30% advance is non-refundable. Admin approval is required.':
+        '30% आगाऊ रक्कम परत मिळणार नाही. अ‍ॅडमिनची मंजुरी आवश्यक आहे.',
+    'Reason for cancellation': 'रद्द करण्याचे कारण',
+    'Close': 'बंद करा',
+    'Submit Request': 'विनंती पाठवा',
+    'Enter only the details you want changed. Admin approval is required.':
+        'फक्त बदलायचे तपशील भरा. अ‍ॅडमिनची मंजुरी आवश्यक आहे.',
+    'New date': 'नवीन तारीख',
+    'New time': 'नवीन वेळ',
+    'New quantity': 'नवीन संख्या',
+    'New address': 'नवीन पत्ता',
+    'Reason for change *': 'बदलाचे कारण *',
+    'Request submitted to admin.': 'विनंती अ‍ॅडमिनकडे पाठवली.',
+    'Enter amount': 'रक्कम टाका',
+    'ADD MONEY SECURELY': 'सुरक्षितपणे पैसे जोडा',
+    'Wallet transaction': 'वॉलेट व्यवहार',
+    'Wallet top-up via Razorpay': 'रेझरपेद्वारे वॉलेटमध्ये पैसे जोडले',
+    'Money added to wallet successfully.':
+        'वॉलेटमध्ये पैसे यशस्वीरित्या जोडले.',
+    'Call': 'कॉल करा',
+    'Need help with an order?': 'ऑर्डरसाठी मदत हवी आहे?',
+    'Reach out to {plant_name} directly.': 'थेट {plant_name} शी संपर्क करा.',
+    'Frequently asked': 'नेहमी विचारले जाणारे प्रश्न',
+    'How do I place a bulk order?': 'मी मोठी ऑर्डर कशी देऊ?',
+    'Tap "Request Bulk Order" on the home screen, fill in your event details, and pay the 30% advance to confirm.':
+        'होम स्क्रीनवर "मोठी ऑर्डर विनंती" दाबा, तपशील भरा आणि पुष्टीसाठी 30% आगाऊ रक्कम भरा.',
+    'Why do I pay 30% advance?': 'मी 30% आगाऊ रक्कम का भरतो?',
+    'The 30% advance confirms your booking and blocks your event date. The remaining 70% is paid as cash on delivery.':
+        '30% आगाऊ रक्कम बुकिंग निश्चित करते. उर्वरित 70% वितरणावेळी रोख भरले जाते.',
+    'Is the advance refundable?': 'आगाऊ रक्कम परत मिळते का?',
+    'The 30% advance is non-refundable. Submit a cancellation request from My Bookings; after admin approval, the date and cans are released immediately.':
+        '30% आगाऊ रक्कम परत मिळणार नाही. माझ्या बुकिंगमधून रद्द विनंती करा; मंजुरीनंतर तारीख आणि कॅन लगेच उपलब्ध होतील.',
+    'When is a delivery charge added?': 'वितरण शुल्क कधी लागते?',
+    'How will I know my booking is confirmed?':
+        'बुकिंग निश्चित झाल्याचे कसे कळेल?',
+    'A delivery charge applies only to orders under 25 cans, for every village except Kasara Balkunda (which is free).':
+        '25 कॅनपेक्षा कमी ऑर्डरवर वितरण शुल्क लागते; कसारा बालकुंडा येथे वितरण मोफत आहे.',
+    'Online payments confirm instantly. For cash, the plant confirms once the advance is received — you can track it under "My Bookings".':
+        'ऑनलाइन पेमेंट लगेच निश्चित होते. रोख आगाऊ रक्कम मिळाल्यावर प्लांट पुष्टी करते—ते "माझ्या बुकिंग्स" मध्ये पाहा.',
     'Logout': 'लॉग आउट',
   };
 }

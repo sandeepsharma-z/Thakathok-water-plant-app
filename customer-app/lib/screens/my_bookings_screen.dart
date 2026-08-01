@@ -27,7 +27,18 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   @override
   void initState() {
     super.initState();
+    LanguageService.instance.addListener(_onLanguageChanged);
     _lookup();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    LanguageService.instance.removeListener(_onLanguageChanged);
+    super.dispose();
   }
 
   Future<void> _lookup() async {
@@ -87,8 +98,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               Icon(Icons.verified_user_outlined,
                   size: 17, color: AppColors.liveBrand),
               const SizedBox(width: 7),
-              const Text('Your account booking history',
-                  style: TextStyle(fontSize: 12, color: AppColors.body)),
+              Text(tr('Your account booking history'),
+                  style: const TextStyle(fontSize: 12, color: AppColors.body)),
             ]),
           ),
         if (_error != null)
@@ -114,10 +125,9 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     if (_bookings.isEmpty) {
       return _hint(
         icon: Icons.inbox_outlined,
-        title: 'No bookings found',
-        body:
-            'No bookings are linked to this account yet. Place a bulk order to get '
-            'started.',
+        title: tr('No bookings found'),
+        body: tr(
+            'No bookings are linked to this account yet. Place a bulk order to get started.'),
       );
     }
     return ListView.separated(
@@ -195,23 +205,23 @@ class _BookingTileState extends State<_BookingTile> {
       builder: (context) => AlertDialog(
         title: Text(tr('Request Cancellation')),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text(
-              'The 30% advance is non-refundable. Admin approval is required.'),
+          Text(tr(
+              'The 30% advance is non-refundable. Admin approval is required.')),
           const SizedBox(height: 12),
           TextField(
             controller: controller,
             maxLines: 3,
             decoration:
-                const InputDecoration(labelText: 'Reason for cancellation'),
+                InputDecoration(labelText: tr('Reason for cancellation')),
           ),
         ]),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Close')),
+              child: Text(tr('Close'))),
           FilledButton(
               onPressed: () => Navigator.pop(context, controller.text.trim()),
-              child: const Text('Submit Request')),
+              child: Text(tr('Submit Request'))),
         ],
       ),
     );
@@ -236,8 +246,8 @@ class _BookingTileState extends State<_BookingTile> {
           title: Text(tr('Request for Change')),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Text(
-                  'Enter only the details you want changed. Admin approval is required.'),
+              Text(tr(
+                  'Enter only the details you want changed. Admin approval is required.')),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(
@@ -252,7 +262,7 @@ class _BookingTileState extends State<_BookingTile> {
                     if (picked != null) setDialogState(() => date = picked);
                   },
                   child: Text(date == null
-                      ? 'New date'
+                      ? tr('New date')
                       : '${date!.year}-${date!.month.toString().padLeft(2, '0')}-${date!.day.toString().padLeft(2, '0')}'),
                 )),
                 const SizedBox(width: 8),
@@ -264,38 +274,38 @@ class _BookingTileState extends State<_BookingTile> {
                         initialTime: const TimeOfDay(hour: 10, minute: 0));
                     if (picked != null) setDialogState(() => time = picked);
                   },
-                  child:
-                      Text(time == null ? 'New time' : time!.format(context)),
+                  child: Text(
+                      time == null ? tr('New time') : time!.format(context)),
                 )),
               ]),
               const SizedBox(height: 10),
               TextField(
                 controller: cans,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'New quantity'),
+                decoration: InputDecoration(labelText: tr('New quantity')),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: address,
                 maxLines: 2,
-                decoration: const InputDecoration(labelText: 'New address'),
+                decoration: InputDecoration(labelText: tr('New address')),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: reason,
                 maxLines: 2,
                 decoration:
-                    const InputDecoration(labelText: 'Reason for change *'),
+                    InputDecoration(labelText: tr('Reason for change *')),
               ),
             ]),
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Close')),
+                child: Text(tr('Close'))),
             FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Submit Request')),
+                child: Text(tr('Submit Request'))),
           ],
         ),
       ),
@@ -334,7 +344,7 @@ class _BookingTileState extends State<_BookingTile> {
       await task();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request submitted to admin.')));
+          SnackBar(content: Text(tr('Request submitted to admin.'))));
       await widget.onChanged();
     } catch (error) {
       if (!mounted) return;
@@ -370,11 +380,12 @@ class _BookingTileState extends State<_BookingTile> {
             ],
           ),
           const SizedBox(height: 8),
-          _kv('Event', '${b['event_type']} · ${b['cans']} cans'),
-          _kv('Date', '${b['event_date']}  ${b['event_time']}'),
-          _kv('Village', '${b['village']}'),
+          _kv(tr('Event'),
+              '${tr('${b['event_type']}')} · ${b['cans']} ${tr('cans')}'),
+          _kv(tr('Date'), '${b['event_date']}  ${b['event_time']}'),
+          _kv(tr('Village'), '${b['village']}'),
           if (((b['discount_amount'] as num?)?.toInt() ?? 0) > 0)
-            _kv('Offer',
+            _kv(tr('Offer'),
                 '${b['offer_code']}  -₹${(b['discount_amount'] as num).toInt()}'),
           const Divider(height: 20),
           Row(
@@ -524,7 +535,7 @@ class _StatusPill extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(status.toUpperCase(),
+      child: Text(tr(status.toUpperCase()),
           style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w800,

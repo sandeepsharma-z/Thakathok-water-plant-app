@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../services/app_config_service.dart';
 import '../services/auth_service.dart';
+import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
 import '../widgets/language_selector.dart';
@@ -26,7 +27,18 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _hidePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    LanguageService.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    LanguageService.instance.removeListener(_onLanguageChanged);
     _name.dispose();
     _mobile.dispose();
     _password.dispose();
