@@ -678,8 +678,9 @@ class _Dropdown extends StatelessWidget {
       decoration: _inputDecoration(hint),
       hint: Text(hint,
           style: const TextStyle(color: AppColors.hint, fontSize: 13.5)),
-      items:
-          items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+      items: items
+          .map((e) => DropdownMenuItem(value: e, child: Text(tr(e))))
+          .toList(),
       onChanged: onChanged,
       validator: (v) => v == null ? 'Please select an option' : null,
     );

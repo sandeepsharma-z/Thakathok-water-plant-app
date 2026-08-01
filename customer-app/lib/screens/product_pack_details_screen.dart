@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/product_pack.dart';
 import '../services/plant_config.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/content_image.dart';
 import 'bulk_order_form_screen.dart';
@@ -66,7 +67,7 @@ class ProductPackDetailsScreen extends StatelessWidget {
           ),
           const SizedBox(height: 22),
           Text(
-            pack.name,
+            tr(pack.name),
             style: const TextStyle(
               color: AppColors.textDark,
               fontSize: 24,
@@ -78,18 +79,18 @@ class ProductPackDetailsScreen extends StatelessWidget {
             children: [
               _Pill(
                 icon: Icons.water_drop_rounded,
-                label: pack.quantityLabel,
+                label: tr(pack.quantityLabel),
               ),
               const SizedBox(width: 8),
-              const _Pill(
+              _Pill(
                 icon: Icons.verified_rounded,
-                label: 'Sealed & Safe',
+                label: tr('Sealed & Safe'),
               ),
             ],
           ),
           const SizedBox(height: 18),
           Text(
-            pack.description,
+            tr(pack.description),
             style: const TextStyle(
               color: AppColors.body,
               fontSize: 13.5,
@@ -99,19 +100,20 @@ class ProductPackDetailsScreen extends StatelessWidget {
           const SizedBox(height: 20),
           _DetailCard(
             icon: Icons.celebration_outlined,
-            title: 'Ideal for',
-            body: pack.idealFor,
+            title: tr('Ideal for'),
+            body: tr(pack.idealFor),
           ),
           const SizedBox(height: 12),
           _DetailCard(
             icon: Icons.currency_rupee_rounded,
-            title: 'Current rate',
-            body: '₹$rate per can · controlled by Mahalakshmi Water Plant',
+            title: tr('Current rate'),
+            body:
+                '₹$rate ${tr('per can')} · ${tr('controlled by Mahalakshmi Water Plant')}',
           ),
           const SizedBox(height: 12),
           _DetailCard(
             icon: Icons.local_shipping_outlined,
-            title: 'Delivery policy for this pack',
+            title: tr('Delivery policy for this pack'),
             body: _deliveryMessage(
               pack: pack,
               freeVillage: freeVillage,
@@ -123,7 +125,7 @@ class ProductPackDetailsScreen extends StatelessWidget {
           const SizedBox(height: 12),
           _DetailCard(
             icon: Icons.location_on_outlined,
-            title: 'Available delivery areas',
+            title: tr('Available delivery areas'),
             body: PlantConfig.instance.villages.join(', '),
           ),
           if (total != null) ...[
@@ -140,20 +142,20 @@ class ProductPackDetailsScreen extends StatelessWidget {
               child: Column(
                 children: [
                   _PriceRow(
-                    label: '${pack.cans} cans × ₹$rate',
+                    label: '${pack.cans} ${tr('cans')} × ₹$rate',
                     value: '₹$total',
                     bold: true,
                   ),
                   const Divider(height: 24),
                   _PriceRow(
                     label:
-                        '${AppConfigService.instance.advancePercent}% advance',
+                        '${AppConfigService.instance.advancePercent}% ${tr('advance')}',
                     value: '₹$advance',
                     highlight: true,
                   ),
                   const SizedBox(height: 8),
                   _PriceRow(
-                    label: 'Balance on delivery',
+                    label: tr('Balance on delivery'),
                     value: '₹${total - advance!}',
                   ),
                 ],
@@ -196,7 +198,7 @@ class ProductPackDetailsScreen extends StatelessWidget {
                 ),
               ),
               child: Text(
-                pack.isCustom ? 'CHOOSE QUANTITY' : 'BOOK THIS PACK',
+                tr(pack.isCustom ? 'CHOOSE QUANTITY' : 'BOOK THIS PACK'),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -219,6 +221,25 @@ String _deliveryMessage({
 }) {
   final villageCount = PlantConfig.instance.villages.length;
   final otherVillages = villageCount > 0 ? villageCount - 1 : 0;
+  final language = LanguageService.instance.language;
+  if (language == AppLanguage.hindi) {
+    if (pack.isCustom) {
+      return '$freeVillage में डिलीवरी हमेशा मुफ्त है। अन्य $otherVillages गाँवों में $threshold कैन से कम पर चुने गए गाँव का शुल्क लगता है (सामान्य शुल्क ₹$deliveryCharge); $threshold या अधिक कैन पर डिलीवरी मुफ्त है।';
+    }
+    if (pack.cans! >= threshold) {
+      return 'इस पैक में ${pack.cans} कैन होने के कारण सभी $villageCount गाँवों में डिलीवरी मुफ्त है (न्यूनतम $threshold कैन)।';
+    }
+    return '$freeVillage में डिलीवरी मुफ्त है। अन्य $otherVillages गाँवों में गाँव का निर्धारित शुल्क लगता है (सामान्य शुल्क ₹$deliveryCharge), क्योंकि यह पैक $threshold कैन की सीमा से कम है।';
+  }
+  if (language == AppLanguage.marathi) {
+    if (pack.isCustom) {
+      return '$freeVillage येथे वितरण नेहमी मोफत आहे. इतर $otherVillages गावांत $threshold पेक्षा कमी कॅनसाठी निवडलेल्या गावाचे शुल्क लागते (सामान्य शुल्क ₹$deliveryCharge); $threshold किंवा अधिक कॅनसाठी वितरण मोफत आहे.';
+    }
+    if (pack.cans! >= threshold) {
+      return 'या पॅकमध्ये ${pack.cans} कॅन असल्यामुळे सर्व $villageCount गावांत वितरण मोफत आहे (किमान $threshold कॅन).';
+    }
+    return '$freeVillage येथे वितरण मोफत आहे. इतर $otherVillages गावांत गावाचे ठरलेले शुल्क लागते (सामान्य शुल्क ₹$deliveryCharge), कारण हा पॅक $threshold कॅनच्या मर्यादेपेक्षा कमी आहे.';
+  }
   if (pack.isCustom) {
     return '$freeVillage always has free delivery. In the other $otherVillages villages, '
         'orders below $threshold cans include the delivery charge configured '

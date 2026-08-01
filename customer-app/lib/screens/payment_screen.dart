@@ -146,8 +146,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Have an offer code?',
-                    style: TextStyle(
+                Text(tr('Have an offer code?'),
+                    style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textDark)),
@@ -160,7 +160,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         enabled: !order.hasDiscount && !_checkingOffer,
                         textCapitalization: TextCapitalization.characters,
                         decoration: InputDecoration(
-                          hintText: 'Enter code',
+                          hintText: tr('Enter code'),
                           isDense: true,
                           filled: true,
                           fillColor: const Color(0xFFF7FAFF),
@@ -226,9 +226,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'If cancelled, the event date will not be unblocked.',
-                  style: TextStyle(color: Color(0xFF9A3A3A), fontSize: 11.5),
+                Text(
+                  tr('If cancelled, the event date will not be unblocked.'),
+                  style:
+                      const TextStyle(color: Color(0xFF9A3A3A), fontSize: 11.5),
                 ),
               ],
             ),
@@ -245,11 +246,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
             child: Column(
               children: [
-                _row('${config.advancePercent}% Advance to Confirm Booking',
+                _row(
+                    '${config.advancePercent}% ${tr('Advance to Confirm Booking')}',
                     '₹${order.advance}',
-                    highlight: true, big: true),
+                    highlight: true,
+                    big: true),
                 const SizedBox(height: 10),
-                _row('Balance ${config.balancePercent}% (Cash on Delivery)',
+                _row(
+                    '${tr('Balance')} ${config.balancePercent}% (${tr('Cash on Delivery')})',
                     '₹${order.balance}'),
               ],
             ),
@@ -274,7 +278,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('PAY ₹${order.advance} ONLINE',
+                  Text('${tr('PAY')} ₹${order.advance} ${tr('ONLINE')}',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w700)),
                   const Text('UPI • GPay • PhonePe',
@@ -307,10 +311,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('PAY ₹${order.advance} FROM WALLET',
+                  Text('${tr('PAY')} ₹${order.advance} ${tr('FROM WALLET')}',
                       style: const TextStyle(
                           fontSize: 14, fontWeight: FontWeight.w700)),
-                  Text('Available balance: ₹$_walletBalance',
+                  Text('${tr('Available balance')}: ₹$_walletBalance',
                       style: const TextStyle(
                           fontSize: 10.5, fontWeight: FontWeight.w400)),
                 ],
@@ -334,7 +338,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('PAY ₹${order.advance} CASH',
+                  Text('${tr('PAY')} ₹${order.advance} ${tr('CASH')}',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w700)),
                   Text('to $kPlantName',
@@ -345,9 +349,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          const Center(
+          Center(
             child: Text(
-              'Date is blocked only after advance is paid/confirmed.',
+              tr('Date is blocked only after advance is paid/confirmed.'),
               style: TextStyle(fontSize: 11, color: AppColors.hint),
             ),
           ),

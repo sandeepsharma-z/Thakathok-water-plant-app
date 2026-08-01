@@ -1250,7 +1250,7 @@ class _TrustStrip extends StatelessWidget {
                     Icon(_icons[i], size: 19, color: AppColors.liveBrand),
                     const SizedBox(height: 5),
                     Text(
-                      titles[i],
+                      tr(titles[i]),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 9.5,
@@ -1510,7 +1510,8 @@ class _TypingHint extends StatefulWidget {
 }
 
 class _TypingHintState extends State<_TypingHint> {
-  List<String> get _phrases => AppConfigService.instance.searchPhrases;
+  List<String> get _phrases =>
+      AppConfigService.instance.searchPhrases.map(tr).toList();
 
   int _phrase = 0;
   int _chars = 0;
@@ -1520,7 +1521,17 @@ class _TypingHintState extends State<_TypingHint> {
   @override
   void initState() {
     super.initState();
+    LanguageService.instance.addListener(_languageChanged);
     _schedule();
+  }
+
+  void _languageChanged() {
+    if (!mounted) return;
+    setState(() {
+      _phrase = 0;
+      _chars = 0;
+      _deleting = false;
+    });
   }
 
   void _schedule() {
@@ -1561,6 +1572,7 @@ class _TypingHintState extends State<_TypingHint> {
 
   @override
   void dispose() {
+    LanguageService.instance.removeListener(_languageChanged);
     _timer?.cancel();
     super.dispose();
   }
@@ -1935,7 +1947,7 @@ class _ProductCard extends StatelessWidget {
               height: 36,
               width: double.infinity,
               child: Text(
-                pack.name,
+                tr(pack.name),
                 maxLines: 2,
                 textAlign: TextAlign.left,
                 overflow: TextOverflow.ellipsis,
@@ -1951,7 +1963,7 @@ class _ProductCard extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                pack.quantityLabel,
+                tr(pack.quantityLabel),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
@@ -2063,7 +2075,7 @@ class _ShopByNeed extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          category.name,
+                          tr(category.name),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,

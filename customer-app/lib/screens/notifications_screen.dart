@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/notification_store.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/dotted_loader.dart';
 import 'bulk_order_form_screen.dart';
@@ -117,8 +118,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             if (!_loading && _items.isNotEmpty)
               TextButton(
                   onPressed: _clear,
-                  child: const Text('Clear all',
-                      style: TextStyle(
+                  child: Text(tr('Clear all'),
+                      style: const TextStyle(
                           color: Color(0xFFE23D3D),
                           fontWeight: FontWeight.w700)))
           ]),

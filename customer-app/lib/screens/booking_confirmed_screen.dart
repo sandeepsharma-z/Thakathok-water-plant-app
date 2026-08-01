@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/order_details.dart';
 import '../theme/app_colors.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import 'home_screen.dart';
 
 /// Screen 4 — shown after the advance is paid (online) or the customer has
@@ -82,26 +83,26 @@ class BookingConfirmedScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _kv('Booking ID', order.bookingId, big: true),
+                    _kv(tr('Booking ID'), order.bookingId, big: true),
                     const Divider(height: 24),
-                    _kv('Event', order.eventType),
+                    _kv(tr('Event'), tr(order.eventType)),
                     const SizedBox(height: 10),
-                    _kv('Cans', '${order.cans}'),
+                    _kv(tr('Cans'), '${order.cans}'),
                     const SizedBox(height: 10),
-                    _kv('Date & Time',
+                    _kv(tr('Date & Time'),
                         '${_fmtDate(order.eventDate)}, ${order.eventTime.format(context)}'),
                     const SizedBox(height: 10),
-                    _kv('Village', order.village),
+                    _kv(tr('Village'), order.village),
                     if (order.hasDiscount) ...[
                       const SizedBox(height: 10),
-                      _kv('Offer ${order.offerCode}',
+                      _kv('${tr('Offer')} ${order.offerCode}',
                           '-₹${order.discountAmount}'),
                     ],
                     const Divider(height: 24),
-                    _kv(confirmed ? 'Advance Paid' : 'Advance Due',
+                    _kv(tr(confirmed ? 'Advance Paid' : 'Advance Due'),
                         '₹${order.advance}'),
                     const SizedBox(height: 10),
-                    _kv('Balance (COD)', '₹${order.balance}'),
+                    _kv(tr('Balance (COD)'), '₹${order.balance}'),
                   ],
                 ),
               ),

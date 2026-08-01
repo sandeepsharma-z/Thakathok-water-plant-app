@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/product_pack.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/content_image.dart';
 import 'product_pack_details_screen.dart';
@@ -39,15 +40,15 @@ class AllProductPacksScreen extends StatelessWidget {
                   : 2;
           return CustomScrollView(
             slivers: [
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(16, 18, 16, 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Choose the right pack',
-                        style: TextStyle(
+                        tr('Choose the right pack'),
+                        style: const TextStyle(
                           color: AppColors.textDark,
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
@@ -55,8 +56,8 @@ class AllProductPacksScreen extends StatelessWidget {
                       ),
                       SizedBox(height: 5),
                       Text(
-                        'Fresh, sealed water cans for every event size.',
-                        style: TextStyle(
+                        tr('Fresh, sealed water cans for every event size.'),
+                        style: const TextStyle(
                           color: AppColors.textMuted,
                           fontSize: 14,
                           height: 1.35,
@@ -138,7 +139,7 @@ class _PackGridCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      pack.name,
+                      tr(pack.name),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -159,7 +160,7 @@ class _PackGridCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            pack.quantityLabel,
+                            tr(pack.quantityLabel),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(

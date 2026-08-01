@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/product_pack.dart';
 import '../services/app_config_service.dart';
+import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/content_image.dart';
 import 'product_pack_details_screen.dart';
@@ -72,7 +73,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
               textInputAction: TextInputAction.search,
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                hintText: 'Search pack name or quantity',
+                hintText: tr('Search pack name or quantity'),
                 prefixIcon:
                     Icon(Icons.search_rounded, color: AppColors.liveBrand),
                 suffixIcon: _search.text.isEmpty
@@ -150,7 +151,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        pack.name,
+                                        tr(pack.name),
                                         style: const TextStyle(
                                           color: AppColors.textDark,
                                           fontSize: 15,
@@ -159,7 +160,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
                                       ),
                                       const SizedBox(height: 5),
                                       Text(
-                                        pack.quantityLabel,
+                                        tr(pack.quantityLabel),
                                         style: TextStyle(
                                           color: AppColors.liveBrand,
                                           fontSize: 13,
