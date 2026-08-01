@@ -42,8 +42,41 @@ class LanguageService extends ChangeNotifier {
   String tr(String english) {
     if (language == AppLanguage.english) return english;
     final values = language == AppLanguage.hindi ? _hindi : _marathi;
-    return values[english] ?? english;
+    final direct = values[english];
+    if (direct != null) return direct;
+
+    // Admin-controlled home text may contain emoji, different punctuation,
+    // spacing or a small wording variation. Resolve those values to the same
+    // translation without changing the English value stored in the database.
+    final normalized = _normalize(english);
+    final canonical = switch (normalized) {
+      'stay hydrated stay healthy' => 'Stay Hydrated, Stay Healthy',
+      'custom need' ||
+      'custom needs' ||
+      'custom quantity' ||
+      'custom pack' ||
+      'custom order' =>
+        'Custom Need',
+      '100% pure' || '100% pure safe' || 'pure safe' => '100% Pure & Safe',
+      'on time delivery' || 'ontime delivery' => 'On-Time Delivery',
+      'easy return' || 'easy returns' => 'Easy Returns',
+      'best price' || 'best price guaranteed' => 'Best Price Guaranteed',
+      _ => null,
+    };
+    if (canonical != null && values[canonical] != null) {
+      return values[canonical]!;
+    }
+    for (final entry in values.entries) {
+      if (_normalize(entry.key) == normalized) return entry.value;
+    }
+    return english;
   }
+
+  static String _normalize(String value) => value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9%]+'), ' ')
+      .trim()
+      .replaceAll(RegExp(r'\s+'), ' ');
 
   static const Map<String, String> _hindi = {
     'Language': 'भाषा',
