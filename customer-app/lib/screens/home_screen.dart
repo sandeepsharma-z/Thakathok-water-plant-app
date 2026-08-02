@@ -461,7 +461,7 @@ class _Header extends StatelessWidget {
                   constraints: const BoxConstraints(),
                   icon: const Icon(Icons.menu_rounded,
                       color: AppColors.textDark, size: 26),
-                  tooltip: 'Menu',
+                  tooltip: tr('Menu'),
                   onPressed: () => Scaffold.of(context).openDrawer(),
                 ),
               ),
@@ -603,13 +603,13 @@ class _NotificationsSheet extends StatelessWidget {
                 Icon(Icons.notifications_rounded,
                     color: AppColors.liveBrand, size: 22),
                 const SizedBox(width: 8),
-                const Text('Notifications',
+                Text(tr('Notifications'),
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.textDark)),
                 Spacer(),
-                Text('${_kNotifications.length} new',
+                Text('${_kNotifications.length} ${tr('new')}',
                     style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -618,10 +618,10 @@ class _NotificationsSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             if (_kNotifications.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
-                  child: Text("You're all caught up",
+                  child: Text(tr("You're all caught up"),
                       style: TextStyle(fontSize: 13.5, color: AppColors.body)),
                 ),
               )
@@ -665,13 +665,13 @@ class _NotificationTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(n.title,
+                Text(tr(n.title),
                     style: const TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                         color: AppColors.textDark)),
                 const SizedBox(height: 2),
-                Text(n.body,
+                Text(tr(n.body),
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.body, height: 1.35)),
               ],
@@ -821,7 +821,7 @@ class _DrawerItem extends StatelessWidget {
           () {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$label — coming soon')),
+              SnackBar(content: Text('$label — ${tr('coming soon')}')),
             );
           },
       minLeadingWidth: 28,

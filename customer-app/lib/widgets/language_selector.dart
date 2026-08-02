@@ -3,10 +3,31 @@ import 'package:flutter/material.dart';
 import '../services/language_service.dart';
 import '../theme/app_colors.dart';
 
-class LanguageSelector extends StatelessWidget {
+class LanguageSelector extends StatefulWidget {
   const LanguageSelector({super.key, this.compact = false});
 
   final bool compact;
+
+  @override
+  State<LanguageSelector> createState() => _LanguageSelectorState();
+}
+
+class _LanguageSelectorState extends State<LanguageSelector> {
+  @override
+  void initState() {
+    super.initState();
+    LanguageService.instance.addListener(_refresh);
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    LanguageService.instance.removeListener(_refresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,15 +36,15 @@ class LanguageSelector extends StatelessWidget {
       tooltip: tr('Language'),
       initialValue: service.language,
       onSelected: service.setLanguage,
-      itemBuilder: (_) => const [
-        PopupMenuItem(value: AppLanguage.english, child: Text('English')),
-        PopupMenuItem(value: AppLanguage.hindi, child: Text('हिन्दी')),
-        PopupMenuItem(value: AppLanguage.marathi, child: Text('मराठी')),
+      itemBuilder: (_) => [
+        PopupMenuItem(value: AppLanguage.english, child: Text(tr('English'))),
+        PopupMenuItem(value: AppLanguage.hindi, child: Text(tr('Hindi'))),
+        PopupMenuItem(value: AppLanguage.marathi, child: Text(tr('Marathi'))),
       ],
       child: Container(
         padding: EdgeInsets.symmetric(
-          horizontal: compact ? 9 : 12,
-          vertical: compact ? 7 : 9,
+          horizontal: widget.compact ? 9 : 12,
+          vertical: widget.compact ? 7 : 9,
         ),
         decoration: BoxDecoration(
           color: AppColors.tint,
@@ -34,14 +55,14 @@ class LanguageSelector extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.language_rounded,
-                size: compact ? 18 : 20, color: AppColors.liveBrand),
+                size: widget.compact ? 18 : 20, color: AppColors.liveBrand),
             const SizedBox(width: 6),
             Text(
               service.languageName,
               style: TextStyle(
                 color: AppColors.liveBrand,
                 fontWeight: FontWeight.w600,
-                fontSize: compact ? 11 : 12,
+                fontSize: widget.compact ? 11 : 12,
               ),
             ),
             const SizedBox(width: 2),

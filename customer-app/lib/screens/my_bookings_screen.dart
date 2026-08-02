@@ -107,7 +107,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
             padding: const EdgeInsets.fromLTRB(18, 0, 18, 8),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: Text(_error!,
+              child: Text(tr(_error!),
                   style: const TextStyle(
                       color: Color(0xFFE23D3D),
                       fontSize: 12,

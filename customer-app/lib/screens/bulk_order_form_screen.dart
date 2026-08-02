@@ -65,6 +65,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
   @override
   void initState() {
     super.initState();
+    LanguageService.instance.addListener(_onLanguageChanged);
     if (widget.initialEventType != null &&
         kEventTypes.contains(widget.initialEventType)) {
       _eventType = widget.initialEventType;
@@ -103,10 +104,15 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
 
   @override
   void dispose() {
+    LanguageService.instance.removeListener(_onLanguageChanged);
     _customCansController.dispose();
     _mobileController.dispose();
     _addressController.dispose();
     super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   /// Resolved can count from the dropdown / custom field (0 if not valid yet).
@@ -207,8 +213,8 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
               padding: const EdgeInsets.fromLTRB(20, 6, 20, 12),
               child: Text(
                 selectedToday
-                    ? 'Only slots available after the ${_noticeLabel(PlantConfig.instance.minimumNoticeMinutes)} notice are shown.'
-                    : 'Time means the required delivery time.',
+                    ? tr('Only slots after the minimum notice are shown.')
+                    : tr('Time means the required delivery time.'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 12, color: AppColors.body),
               ),
@@ -242,8 +248,8 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
         if (requested.isBefore(earliest)) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Today’s delivery time must be at least ${_noticeLabel(PlantConfig.instance.minimumNoticeMinutes)} from now.'),
+            content: Text(tr(
+                'Choose a later delivery time that meets the minimum notice.')),
           ));
           return;
         }
@@ -252,17 +258,13 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
     }
   }
 
-  String _noticeLabel(int minutes) => minutes == 30
-      ? '30 minutes'
-      : '${minutes ~/ 60} hour${minutes == 60 ? '' : 's'}';
-
   Future<void> _submit() async {
     await PlantConfig.instance.load();
     if (!mounted) return;
     if (_village == null || !kVillages.contains(_village)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('This delivery village is no longer available.')),
+        SnackBar(
+            content: Text(tr('This delivery village is no longer available.'))),
       );
       return;
     }
@@ -286,11 +288,10 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              availability.fullyBooked
-                  ? 'This date is fully booked. Please choose another date.'
-                  : 'Only ${availability.remaining} cans are available on this date.',
-            ),
+            content: Text(availability.fullyBooked
+                ? tr('This date is fully booked. Please choose another date.')
+                : tr('Only {count} cans are available on this date.')
+                    .replaceAll('{count}', '${availability.remaining}')),
           ),
         );
         return;
@@ -303,8 +304,8 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
       if (requested.isBefore(earliest)) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'Choose a delivery time at least ${_noticeLabel(availability.minimumNoticeMinutes)} from now.'),
+          content: Text(tr(
+              'Choose a later delivery time that meets the minimum notice.')),
         ));
         return;
       }
@@ -322,12 +323,12 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
         builder: (dialogContext) => AlertDialog(
           icon: Icon(Icons.lock_outline_rounded,
               color: AppColors.liveBrand, size: 34),
-          title: const Text('New order unavailable'),
-          content: Text(eligibility.reason),
+          title: Text(tr('New order unavailable')),
+          content: Text(tr(eligibility.reason)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('OK'),
+              child: Text(tr('OK')),
             ),
           ],
         ),
@@ -417,7 +418,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
                 validator: (v) {
                   if (_cansChoice != 'Custom') return null;
                   final n = int.tryParse((v ?? '').trim()) ?? 0;
-                  if (n <= 0) return 'Enter a valid number of cans';
+                  if (n <= 0) return tr('Enter a valid number of cans');
                   return null;
                 },
               ),
@@ -503,7 +504,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
               ),
               validator: (v) {
                 final s = (v ?? '').trim();
-                if (s.length != 10) return 'Enter a valid 10-digit number';
+                if (s.length != 10) return tr('Enter a valid 10-digit number');
                 return null;
               },
             ),
@@ -528,7 +529,7 @@ class _BulkOrderFormScreenState extends State<BulkOrderFormScreen> {
               decoration: _inputDecoration(tr('Enter address or hall name')),
               validator: (v) {
                 if ((v ?? '').trim().isEmpty) {
-                  return 'Please enter an address or hall name';
+                  return tr('Please enter an address or hall name');
                 }
                 return null;
               },

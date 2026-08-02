@@ -196,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       maxHeight: 1000,
       uiSettings: [
         AndroidUiSettings(
-          toolbarTitle: 'Crop profile photo',
+          toolbarTitle: tr('Crop profile photo'),
           toolbarColor: AppColors.liveBrand,
           toolbarWidgetColor: Colors.white,
           activeControlsWidgetColor: AppColors.liveBrand,
@@ -208,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           aspectRatioPresets: const [CropAspectRatioPreset.square],
         ),
         IOSUiSettings(
-          title: 'Crop profile photo',
+          title: tr('Crop profile photo'),
           aspectRatioLockEnabled: true,
           resetAspectRatioEnabled: false,
           aspectRatioPresets: const [CropAspectRatioPreset.square],
@@ -258,16 +258,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final shouldRemove = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Remove profile photo?'),
+            title: Text(tr('Remove profile photo?')),
             content:
-                const Text('The default profile icon will be shown instead.'),
+                Text(tr('The default profile icon will be shown instead.')),
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('CANCEL')),
+                  child: Text(tr('CANCEL'))),
               TextButton(
                   onPressed: () => Navigator.pop(dialogContext, true),
-                  child: const Text('REMOVE')),
+                  child: Text(tr('REMOVE'))),
             ],
           ),
         ) ??
@@ -311,7 +311,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+      ..showSnackBar(SnackBar(content: Text(tr(message))));
   }
 
   @override
@@ -476,7 +476,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontSize: 14),
                     ),
                     validator: (v) => (v ?? '').trim().length != 10
-                        ? 'Enter 10 digits'
+                        ? tr('Enter 10 digits')
                         : null,
                   ),
                   const SizedBox(height: 18),
@@ -487,7 +487,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     isExpanded: true,
                     icon: Icon(Icons.keyboard_arrow_down_rounded,
                         color: AppColors.liveBrand),
-                    decoration: _dec('Select your village'),
+                    decoration: _dec(tr('Select your village')),
                     items: kVillages
                         .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                         .toList(),

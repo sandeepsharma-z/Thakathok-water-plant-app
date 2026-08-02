@@ -26,14 +26,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
+    LanguageService.instance.addListener(_languageChanged);
     _load();
     _poller = Timer.periodic(const Duration(seconds: 20), (_) => _load());
   }
 
   @override
   void dispose() {
+    LanguageService.instance.removeListener(_languageChanged);
     _poller?.cancel();
     super.dispose();
+  }
+
+  void _languageChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _load() async {
@@ -51,7 +57,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (_) {
       if (mounted) {
         setState(() {
-          _error = 'Could not load notifications.';
+          _error = tr('Could not load notifications.');
           _loading = false;
         });
       }
@@ -126,7 +132,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: _loading
           ? const Center(child: DottedLoader())
           : _error != null
-              ? Center(child: Text(_error!))
+              ? Center(child: Text(tr(_error!)))
               : _items.isEmpty
                   ? const _Empty()
                   : RefreshIndicator(
@@ -194,13 +200,13 @@ class _Card extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  Text(n.title,
+                  Text(tr(n.title),
                       style: const TextStyle(
                           color: AppColors.textDark,
                           fontSize: 14,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 5),
-                  Text(n.body,
+                  Text(tr(n.body),
                       style: const TextStyle(
                           color: AppColors.body, fontSize: 12, height: 1.45)),
                   const SizedBox(height: 7),
@@ -217,7 +223,7 @@ class _Card extends StatelessWidget {
                   ]
                 ])),
             IconButton(
-                tooltip: 'Remove notification',
+                tooltip: tr('Remove notification'),
                 onPressed: onDelete,
                 icon: const Icon(Icons.close_rounded,
                     size: 19, color: AppColors.textMuted))
@@ -240,7 +246,7 @@ class _Empty extends StatelessWidget {
         Icon(Icons.notifications_none_rounded,
             color: AppColors.liveBrand, size: 48),
         SizedBox(height: 12),
-        Text("You're all caught up",
+        Text(tr("You're all caught up"),
             style: TextStyle(
                 color: AppColors.textDark,
                 fontSize: 16,

@@ -40,15 +40,20 @@ class LanguageService extends ChangeNotifier {
   }
 
   String tr(String english) {
-    if (language == AppLanguage.english) return english;
+    // A few widgets and admin-controlled values can survive a route rebuild
+    // with text that was translated by the previously selected language.
+    // Resolve it back to the canonical English key first so switching
+    // Hindi -> English or Marathi -> Hindi never leaves mixed-language text.
+    final canonicalEnglish = _canonicalEnglish(english);
+    if (language == AppLanguage.english) return canonicalEnglish;
     final values = language == AppLanguage.hindi ? _hindi : _marathi;
-    final direct = values[english];
+    final direct = values[canonicalEnglish];
     if (direct != null) return direct;
 
     // Admin-controlled home text may contain emoji, different punctuation,
     // spacing or a small wording variation. Resolve those values to the same
     // translation without changing the English value stored in the database.
-    final normalized = _normalize(english);
+    final normalized = _normalize(canonicalEnglish);
     final canonical = switch (normalized) {
       'stay hydrated stay healthy' => 'Stay Hydrated, Stay Healthy',
       'custom need' ||
@@ -69,7 +74,17 @@ class LanguageService extends ChangeNotifier {
     for (final entry in values.entries) {
       if (_normalize(entry.key) == normalized) return entry.value;
     }
-    return english;
+    return canonicalEnglish;
+  }
+
+  static String _canonicalEnglish(String value) {
+    for (final entry in _hindi.entries) {
+      if (entry.value == value) return entry.key;
+    }
+    for (final entry in _marathi.entries) {
+      if (entry.value == value) return entry.key;
+    }
+    return value;
   }
 
   static String _normalize(String value) => value
@@ -311,6 +326,86 @@ class LanguageService extends ChangeNotifier {
     'Any event requiring a personalised water quantity':
         'कोई भी कार्यक्रम जिसमें अपनी मात्रा के अनुसार पानी चाहिए',
     'Logout': 'लॉग आउट',
+    'Menu': 'मेन्यू',
+    'new': 'नई',
+    "You're all caught up": 'आपने सभी सूचनाएँ देख ली हैं',
+    'Remove notification': 'सूचना हटाएँ',
+    'This delivery village is no longer available.':
+        'यह डिलीवरी गाँव अब उपलब्ध नहीं है।',
+    'New order unavailable': 'नया ऑर्डर उपलब्ध नहीं है',
+    'OK': 'ठीक है',
+    'coming soon': 'जल्द उपलब्ध होगा',
+    'Could not load notifications.': 'सूचनाएँ लोड नहीं हो सकीं।',
+    'Pay from wallet?': 'वॉलेट से भुगतान करें?',
+    'CANCEL': 'रद्द करें',
+    'PAY & CONFIRM': 'भुगतान करें और पुष्टि करें',
+    'to': 'को',
+    'Crop profile photo': 'प्रोफ़ाइल फ़ोटो क्रॉप करें',
+    'Remove profile photo?': 'प्रोफ़ाइल फ़ोटो हटाएँ?',
+    'The default profile icon will be shown instead.':
+        'इसके स्थान पर डिफ़ॉल्ट प्रोफ़ाइल आइकन दिखाया जाएगा।',
+    'REMOVE': 'हटाएँ',
+    'Your ordering is temporarily on hold. Please contact Mahalakshmi Water Plant on 8080739807 to clear dues.':
+        'आपका ऑर्डर अस्थायी रूप से रोका गया है। बकाया चुकाने के लिए महालक्ष्मी वॉटर प्लांट से 8080739807 पर संपर्क करें।',
+    'Incomplete secure payment response. Please contact support.':
+        'सुरक्षित भुगतान की जानकारी अधूरी है। सहायता से संपर्क करें।',
+    'Secure payment could not be completed. Please try again.':
+        'सुरक्षित भुगतान पूरा नहीं हो सका। कृपया दोबारा प्रयास करें।',
+    'Payment cancelled.': 'भुगतान रद्द किया गया।',
+    'Payment failed. Please try again or choose Cash.':
+        'भुगतान विफल रहा। दोबारा प्रयास करें या नकद चुनें।',
+    'Payment failed. No money was added.':
+        'भुगतान विफल रहा। कोई राशि नहीं जोड़ी गई।',
+    'Insufficient wallet balance. Add ₹{amount} more.':
+        'वॉलेट में पर्याप्त बैलेंस नहीं है। ₹{amount} और जोड़ें।',
+    '₹{amount} will be deducted from your wallet to confirm this booking.':
+        'इस बुकिंग की पुष्टि के लिए आपके वॉलेट से ₹{amount} काटे जाएँगे।',
+    'Please login again to use your wallet.':
+        'वॉलेट उपयोग करने के लिए दोबारा लॉगिन करें।',
+    'Could not load wallet.': 'वॉलेट लोड नहीं हो सका।',
+    'Something went wrong. Try again.': 'कुछ गलत हुआ। दोबारा प्रयास करें।',
+    'Welcome to ThakaThok 💧': 'ठकाठोक में आपका स्वागत है 💧',
+    'How booking works': 'बुकिंग कैसे काम करती है',
+    'Free delivery in Kasara Balkunda': 'कसारा बालकुंडा में मुफ्त डिलीवरी',
+    'Book bulk water for your weddings & events in just a few taps.':
+        'कुछ ही टैप में शादी और कार्यक्रमों के लिए पानी बुक करें।',
+    'Pay a 30% advance to confirm your date. The balance is cash on delivery.':
+        'तारीख की पुष्टि के लिए 30% अग्रिम दें। शेष राशि डिलीवरी पर नकद दें।',
+    'A delivery charge applies only on orders under 25 cans in other villages.':
+        'अन्य गाँवों में केवल 25 कैन से कम के ऑर्डर पर डिलीवरी शुल्क लगता है।',
+    'Only slots after the minimum notice are shown.':
+        'न्यूनतम सूचना समय के बाद उपलब्ध स्लॉट ही दिखाए गए हैं।',
+    'Time means the required delivery time.':
+        'समय का अर्थ आवश्यक डिलीवरी समय है।',
+    'Choose a later delivery time that meets the minimum notice.':
+        'न्यूनतम सूचना अवधि पूरी करने वाला बाद का डिलीवरी समय चुनें।',
+    'This date is fully booked. Please choose another date.':
+        'यह तारीख पूरी तरह बुक है। कृपया दूसरी तारीख चुनें।',
+    'Only {count} cans are available on this date.':
+        'इस तारीख को केवल {count} कैन उपलब्ध हैं।',
+    'Enter a valid number of cans': 'कैन की सही संख्या दर्ज करें',
+    'Enter a valid 10-digit number': 'सही 10 अंकों का नंबर दर्ज करें',
+    'Please enter an address or hall name': 'कृपया पता या हॉल का नाम दर्ज करें',
+    '{plant} staff will call you in 5 mins.':
+        '{plant} का स्टाफ आपको 5 मिनट में कॉल करेगा।',
+    'We received your request. {plant} will confirm once the cash advance is paid.':
+        'आपका अनुरोध मिल गया है। नकद अग्रिम मिलने के बाद {plant} पुष्टि करेगा।',
+    'Please sign in again to view your bookings.':
+        'अपनी बुकिंग देखने के लिए दोबारा लॉगिन करें।',
+    'Could not load bookings. Try again.':
+        'बुकिंग लोड नहीं हो सकीं। दोबारा प्रयास करें।',
+    'Profile photo updated.': 'प्रोफ़ाइल फ़ोटो अपडेट हो गई।',
+    'Profile photo replaced.': 'प्रोफ़ाइल फ़ोटो बदल दी गई।',
+    'Could not upload photo. Current photo was kept.':
+        'फ़ोटो अपलोड नहीं हुई। वर्तमान फ़ोटो सुरक्षित रखी गई।',
+    'Profile photo removed.': 'प्रोफ़ाइल फ़ोटो हटा दी गई।',
+    'Could not remove photo. Please try again.':
+        'फ़ोटो हटाई नहीं जा सकी। दोबारा प्रयास करें।',
+    'Enter 10 digits': '10 अंक दर्ज करें',
+    'Enter an amount between ₹10 and ₹1,00,000.':
+        '₹10 से ₹1,00,000 के बीच राशि दर्ज करें।',
+    'Incomplete payment response. Contact support.':
+        'भुगतान की जानकारी अधूरी है। सहायता से संपर्क करें।',
   };
 
   static const Map<String, String> _marathi = {
@@ -545,6 +640,85 @@ class LanguageService extends ChangeNotifier {
     'Any event requiring a personalised water quantity':
         'स्वतःच्या गरजेनुसार पाण्याची संख्या लागणारा कोणताही कार्यक्रम',
     'Logout': 'लॉग आउट',
+    'Menu': 'मेनू',
+    'new': 'नवीन',
+    "You're all caught up": 'तुम्ही सर्व सूचना पाहिल्या आहेत',
+    'Remove notification': 'सूचना काढा',
+    'This delivery village is no longer available.':
+        'हे वितरण गाव आता उपलब्ध नाही.',
+    'New order unavailable': 'नवीन ऑर्डर उपलब्ध नाही',
+    'OK': 'ठीक आहे',
+    'coming soon': 'लवकरच उपलब्ध होईल',
+    'Could not load notifications.': 'सूचना लोड करता आल्या नाहीत.',
+    'Pay from wallet?': 'वॉलेटमधून पैसे भरायचे?',
+    'CANCEL': 'रद्द करा',
+    'PAY & CONFIRM': 'पैसे भरा आणि निश्चित करा',
+    'to': 'यांना',
+    'Crop profile photo': 'प्रोफाइल फोटो क्रॉप करा',
+    'Remove profile photo?': 'प्रोफाइल फोटो काढायचा?',
+    'The default profile icon will be shown instead.':
+        'त्याऐवजी डीफॉल्ट प्रोफाइल चिन्ह दाखवले जाईल.',
+    'REMOVE': 'काढा',
+    'Your ordering is temporarily on hold. Please contact Mahalakshmi Water Plant on 8080739807 to clear dues.':
+        'तुमची ऑर्डर तात्पुरती थांबवली आहे. थकबाकी भरण्यासाठी महालक्ष्मी वॉटर प्लांटशी 8080739807 वर संपर्क करा.',
+    'Incomplete secure payment response. Please contact support.':
+        'सुरक्षित पेमेंटची माहिती अपूर्ण आहे. मदतीसाठी संपर्क करा.',
+    'Secure payment could not be completed. Please try again.':
+        'सुरक्षित पेमेंट पूर्ण झाले नाही. कृपया पुन्हा प्रयत्न करा.',
+    'Payment cancelled.': 'पेमेंट रद्द केले.',
+    'Payment failed. Please try again or choose Cash.':
+        'पेमेंट अयशस्वी झाले. पुन्हा प्रयत्न करा किंवा रोख निवडा.',
+    'Payment failed. No money was added.':
+        'पेमेंट अयशस्वी झाले. कोणतीही रक्कम जोडली नाही.',
+    'Insufficient wallet balance. Add ₹{amount} more.':
+        'वॉलेटमध्ये पुरेशी शिल्लक नाही. आणखी ₹{amount} जोडा.',
+    '₹{amount} will be deducted from your wallet to confirm this booking.':
+        'ही बुकिंग निश्चित करण्यासाठी तुमच्या वॉलेटमधून ₹{amount} वजा होतील.',
+    'Please login again to use your wallet.':
+        'वॉलेट वापरण्यासाठी पुन्हा लॉगिन करा.',
+    'Could not load wallet.': 'वॉलेट लोड करता आले नाही.',
+    'Something went wrong. Try again.': 'काहीतरी चुकले. पुन्हा प्रयत्न करा.',
+    'Welcome to ThakaThok 💧': 'ठकाठोकमध्ये स्वागत आहे 💧',
+    'How booking works': 'बुकिंग कशी चालते',
+    'Free delivery in Kasara Balkunda': 'कसारा बालकुंडा येथे मोफत वितरण',
+    'Book bulk water for your weddings & events in just a few taps.':
+        'काही टॅपमध्ये लग्न व कार्यक्रमांसाठी पाणी बुक करा.',
+    'Pay a 30% advance to confirm your date. The balance is cash on delivery.':
+        'तारीख निश्चित करण्यासाठी 30% आगाऊ भरा. उर्वरित रक्कम वितरणावेळी रोख द्या.',
+    'A delivery charge applies only on orders under 25 cans in other villages.':
+        'इतर गावांत फक्त 25 कॅनपेक्षा कमी ऑर्डरवर वितरण शुल्क लागते.',
+    'Only slots after the minimum notice are shown.':
+        'किमान सूचना कालावधीनंतरचे उपलब्ध स्लॉटच दाखवले आहेत.',
+    'Time means the required delivery time.': 'वेळ म्हणजे आवश्यक वितरणाची वेळ.',
+    'Choose a later delivery time that meets the minimum notice.':
+        'किमान सूचना कालावधी पूर्ण करणारी पुढची वितरण वेळ निवडा.',
+    'This date is fully booked. Please choose another date.':
+        'ही तारीख पूर्णपणे बुक आहे. कृपया दुसरी तारीख निवडा.',
+    'Only {count} cans are available on this date.':
+        'या तारखेला फक्त {count} कॅन उपलब्ध आहेत.',
+    'Enter a valid number of cans': 'कॅनची योग्य संख्या टाका',
+    'Enter a valid 10-digit number': 'योग्य 10 अंकी नंबर टाका',
+    'Please enter an address or hall name': 'कृपया पत्ता किंवा हॉलचे नाव टाका',
+    '{plant} staff will call you in 5 mins.':
+        '{plant} चे कर्मचारी तुम्हाला 5 मिनिटांत कॉल करतील.',
+    'We received your request. {plant} will confirm once the cash advance is paid.':
+        'तुमची विनंती मिळाली आहे. रोख आगाऊ रक्कम मिळाल्यावर {plant} पुष्टी करेल.',
+    'Please sign in again to view your bookings.':
+        'बुकिंग पाहण्यासाठी पुन्हा लॉगिन करा.',
+    'Could not load bookings. Try again.':
+        'बुकिंग लोड करता आल्या नाहीत. पुन्हा प्रयत्न करा.',
+    'Profile photo updated.': 'प्रोफाइल फोटो अपडेट झाला.',
+    'Profile photo replaced.': 'प्रोफाइल फोटो बदलला.',
+    'Could not upload photo. Current photo was kept.':
+        'फोटो अपलोड झाला नाही. सध्याचा फोटो ठेवला आहे.',
+    'Profile photo removed.': 'प्रोफाइल फोटो काढला.',
+    'Could not remove photo. Please try again.':
+        'फोटो काढता आला नाही. पुन्हा प्रयत्न करा.',
+    'Enter 10 digits': '10 अंक टाका',
+    'Enter an amount between ₹10 and ₹1,00,000.':
+        '₹10 ते ₹1,00,000 दरम्यान रक्कम टाका.',
+    'Incomplete payment response. Contact support.':
+        'पेमेंटची माहिती अपूर्ण आहे. मदतीसाठी संपर्क करा.',
   };
 }
 

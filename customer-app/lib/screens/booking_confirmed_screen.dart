@@ -133,9 +133,10 @@ class BookingConfirmedScreen extends StatelessWidget {
                     Expanded(
                       child: Text(
                         confirmed
-                            ? '${config.plantDisplayName} staff will call you in 5 mins.'
-                            : 'We received your request. ${config.plantDisplayName} will '
-                                'confirm once the cash advance is paid.',
+                            ? tr('{plant} staff will call you in 5 mins.')
+                                .replaceAll('{plant}', config.plantDisplayName)
+                            : tr('We received your request. {plant} will confirm once the cash advance is paid.')
+                                .replaceAll('{plant}', config.plantDisplayName),
                         style: TextStyle(
                           fontSize: 11.5,
                           color: confirmed

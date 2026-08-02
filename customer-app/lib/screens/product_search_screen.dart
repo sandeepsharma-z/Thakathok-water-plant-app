@@ -20,6 +20,16 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
   late final TextEditingController _search =
       TextEditingController(text: widget.initialQuery);
 
+  @override
+  void initState() {
+    super.initState();
+    LanguageService.instance.addListener(_onLanguageChanged);
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
+  }
+
   List<ProductPack> get _results {
     final query = _search.text.trim().toLowerCase();
     if (query.isEmpty) return productPacks;
@@ -37,6 +47,7 @@ class _ProductSearchScreenState extends State<ProductSearchScreen> {
 
   @override
   void dispose() {
+    LanguageService.instance.removeListener(_onLanguageChanged);
     _search.dispose();
     super.dispose();
   }

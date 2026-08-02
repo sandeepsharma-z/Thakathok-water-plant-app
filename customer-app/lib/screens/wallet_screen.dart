@@ -323,7 +323,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         if (_error != null) ...[
                           const SizedBox(height: 10),
                           Text(
-                            _error!,
+                            tr(_error!),
                             style: const TextStyle(
                               color: Color(0xFFD32020),
                               fontSize: 12,

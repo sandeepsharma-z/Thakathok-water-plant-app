@@ -41,6 +41,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   void initState() {
     super.initState();
+    LanguageService.instance.addListener(_onLanguageChanged);
     order = widget.order;
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaySuccess);
@@ -59,9 +60,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   void dispose() {
+    LanguageService.instance.removeListener(_onLanguageChanged);
     _razorpay.clear();
     _offerCode.dispose();
     super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -341,7 +347,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   Text('${tr('PAY')} ₹${order.advance} ${tr('CASH')}',
                       style: const TextStyle(
                           fontSize: 15, fontWeight: FontWeight.w700)),
-                  Text('to $kPlantName',
+                  Text('${tr('to')} $kPlantName',
                       style: const TextStyle(
                           fontSize: 10.5, fontWeight: FontWeight.w400)),
                 ],
@@ -411,7 +417,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   void _showOfferMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(content: Text(tr(message))),
     );
   }
 
@@ -451,9 +457,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final signature = response.signature ?? '';
     if (orderId.isEmpty || paymentId.isEmpty || signature.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text(
-              'Incomplete secure payment response. Please contact support.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr(
+              'Incomplete secure payment response. Please contact support.')),
         ));
       }
       return;
@@ -494,17 +500,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
   String _paymentError(Object error) {
     final text = error.toString();
     final match = RegExp(r'error:\s*([^,}\]]+)').firstMatch(text);
-    return match?.group(1)?.trim() ??
-        'Secure payment could not be completed. Please try again.';
+    return tr(match?.group(1)?.trim() ??
+        'Secure payment could not be completed. Please try again.');
   }
 
   void _onPayError(PaymentFailureResponse response) {
     if (!mounted) return;
     final cancelled = response.code == Razorpay.PAYMENT_CANCELLED;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(cancelled
+      content: Text(tr(cancelled
           ? 'Payment cancelled.'
-          : 'Payment failed. Please try again or choose Cash.'),
+          : 'Payment failed. Please try again or choose Cash.')),
     ));
   }
 
@@ -513,25 +519,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
   Future<void> _payFromWallet() async {
     if (_walletBalance < order.advance) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-            'Insufficient wallet balance. Add ₹${order.advance - _walletBalance} more.'),
+        content: Text(tr('Insufficient wallet balance. Add ₹{amount} more.')
+            .replaceAll('{amount}', '${order.advance - _walletBalance}')),
       ));
       return;
     }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Pay from wallet?'),
+        title: Text(tr('Pay from wallet?')),
         content: Text(
-          '₹${order.advance} will be deducted from your wallet to confirm this booking.',
-        ),
+            tr('₹{amount} will be deducted from your wallet to confirm this booking.')
+                .replaceAll('{amount}', '${order.advance}')),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('CANCEL')),
+              child: Text(tr('CANCEL'))),
           ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('PAY & CONFIRM')),
+              child: Text(tr('PAY & CONFIRM'))),
         ],
       ),
     );
@@ -603,11 +609,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().contains('CUSTOMER_NOT_ELIGIBLE')
-                ? 'Previous payment/order is still pending. Complete it before placing a new order.'
+            tr(error.toString().contains('CUSTOMER_NOT_ELIGIBLE')
+                ? 'Your ordering is temporarily on hold. Please contact Mahalakshmi Water Plant on 8080739807 to clear dues.'
                 : error.toString().contains('DATE_UNAVAILABLE')
                     ? AppConfigService.instance.label('date_unavailable_error')
-                    : AppConfigService.instance.label('booking_save_error'),
+                    : AppConfigService.instance.label('booking_save_error')),
           ),
         ),
       );
