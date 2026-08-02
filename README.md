@@ -16,7 +16,7 @@ Production-oriented water-delivery system for Mahalakshmi Water Plant.
 3. Cash orders await confirmation; verified online/wallet payments confirm securely.
 4. Admin can assign a confirmed order to enabled delivery staff.
 5. Staff records delivery, cash collected, returned cans and optional proof.
-6. Admin clears remaining dues/cans with `All Done`; new orders remain blocked until prior liabilities are cleared.
+6. Pending dues and empty cans remain tracked without automatically stopping urgent repeat orders. Admin can manually block or unblock ordering for an individual customer from Customer Details.
 
 Customer-owned records are accessed through an opaque session token and the
 `customer-api` Edge Function. Public mobile-number-only access is disabled.

@@ -1,12 +1,15 @@
 -- Customer next-order eligibility and admin All Done approval. Safe to re-run.
 alter table public.bookings add column if not exists all_done_at timestamptz;
 alter table public.bookings add column if not exists all_done_by uuid;
+alter table public.customers add column if not exists ordering_blocked boolean not null default false;
+alter table public.customers add column if not exists ordering_blocked_at timestamptz;
+alter table public.customers add column if not exists ordering_blocked_by uuid;
 
 create or replace function public.get_customer_order_eligibility(p_mobile text)
 returns jsonb language plpgsql security definer set search_path=public as $$
 declare
   clean_mobile text:=regexp_replace(coalesce(p_mobile,''),'\D','','g');
-  due_amount int:=0; pending_cans int:=0; open_code text; open_status text;
+  due_amount int:=0; pending_cans int:=0; is_blocked boolean:=false;
 begin
   if length(clean_mobile)<>10 then
     return jsonb_build_object('eligible',false,'reason','Please login again.');
@@ -18,38 +21,19 @@ begin
   from public.booking_can_allocations a
   join public.bookings b on b.id=a.booking_id
   where b.mobile=clean_mobile and a.state='delivered';
-  select booking_code,status into open_code,open_status
-  from public.bookings
-  where mobile=clean_mobile and status in ('pending','confirmed','delivered')
-    and all_done_at is null
-  order by created_at desc limit 1;
+  select coalesce(ordering_blocked,false) into is_blocked
+  from public.customers where mobile=clean_mobile;
 
-  if due_amount>0 then
+  if is_blocked then
     return jsonb_build_object(
       'eligible',false,'reason',
-      'Previous payment of '||chr(8377)||due_amount||' is pending. Please clear it before placing a new order.',
-      'pending_dues',due_amount,'pending_cans',pending_cans,'booking_code',open_code
-    );
-  end if;
-  if pending_cans>0 then
-    return jsonb_build_object(
-      'eligible',false,'reason',
-      pending_cans||' empty cans are pending for return. Please return them before placing a new order.',
-      'pending_dues',due_amount,'pending_cans',pending_cans,'booking_code',open_code
-    );
-  end if;
-  if open_code is not null then
-    return jsonb_build_object(
-      'eligible',false,'reason',
-      case when open_status='pending'
-        then 'Your previous cash booking '||open_code||' is awaiting confirmation.'
-        else 'Your previous order '||open_code||' is not marked All Done yet.'
-      end,
-      'pending_dues',0,'pending_cans',0,'booking_code',open_code
+      'Your ordering is temporarily on hold. Please contact Mahalakshmi Water Plant on 8080739807 to clear dues.',
+      'pending_dues',due_amount,'pending_cans',pending_cans,'manually_blocked',true
     );
   end if;
   return jsonb_build_object(
-    'eligible',true,'reason','','pending_dues',0,'pending_cans',0
+    'eligible',true,'reason','','pending_dues',due_amount,
+    'pending_cans',pending_cans,'manually_blocked',false
   );
 end $$;
 grant execute on function public.get_customer_order_eligibility(text)

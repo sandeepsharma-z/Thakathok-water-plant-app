@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Ban,
   CalendarDays,
   Check,
   ChevronRight,
@@ -9,6 +10,7 @@ import {
   Pencil,
   Phone,
   ReceiptText,
+  ShieldCheck,
   StickyNote,
   Trash2,
   User,
@@ -18,7 +20,12 @@ import {
 import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-import { deleteCustomer, saveCustomer, type ActionState } from "@/app/actions";
+import {
+  deleteCustomer,
+  saveCustomer,
+  setCustomerOrderingBlocked,
+  type ActionState,
+} from "@/app/actions";
 import { formatDate, rupees, type Booking } from "@/lib/types";
 
 function SaveBtn() {
@@ -80,6 +87,7 @@ export function CustomerRow({
   bookings,
   walletBalance,
   walletTransactions,
+  orderingBlocked,
   registered = false,
 }: {
   mobile: string;
@@ -100,6 +108,7 @@ export function CustomerRow({
     description: string;
     created_at: string;
   }>;
+  orderingBlocked: boolean;
   registered?: boolean;
 }) {
   const [viewOpen, setViewOpen] = useState(false);
@@ -108,6 +117,10 @@ export function CustomerRow({
   const [state, action] = useActionState<ActionState, FormData>(saveCustomer, {});
   const [deleteState, deleteAction] = useActionState<ActionState, FormData>(
     deleteCustomer,
+    {},
+  );
+  const [blockState, blockAction] = useActionState<ActionState, FormData>(
+    setCustomerOrderingBlocked,
     {},
   );
   const displayName = name.trim() || "Unnamed customer";
@@ -139,6 +152,11 @@ export function CustomerRow({
                     BOOKING ONLY
                   </span>
                 )}
+                {orderingBlocked ? (
+                  <span className="rounded-full bg-danger-bg px-2.5 py-1 text-[9px] font-extrabold tracking-[.08em] text-danger">
+                    ORDERING BLOCKED
+                  </span>
+                ) : null}
               </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-muted">
                 <a
@@ -225,6 +243,72 @@ export function CustomerRow({
             <InfoCard icon={StickyNote} label="Admin note">
               {note || "No note added"}
             </InfoCard>
+          </div>
+
+          <div
+            className={`mt-5 rounded-2xl border p-4 ${
+              orderingBlocked
+                ? "border-danger/20 bg-danger-bg"
+                : "border-ok/20 bg-ok-bg"
+            }`}
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white ${
+                    orderingBlocked ? "bg-danger" : "bg-ok"
+                  }`}
+                >
+                  {orderingBlocked ? (
+                    <Ban className="h-5 w-5" />
+                  ) : (
+                    <ShieldCheck className="h-5 w-5" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-[13px] font-extrabold text-ink">
+                    {orderingBlocked
+                      ? "Customer ordering is blocked"
+                      : "Customer ordering is allowed"}
+                  </p>
+                  <p className="mt-1 text-[11.5px] leading-5 text-ink-muted">
+                    Pending dues or cans never block automatically. Admin controls this access manually.
+                  </p>
+                </div>
+              </div>
+              <form action={blockAction}>
+                <input type="hidden" name="mobile" value={mobile} />
+                <input
+                  type="hidden"
+                  name="blocked"
+                  value={orderingBlocked ? "false" : "true"}
+                />
+                <button
+                  className={`inline-flex h-11 items-center justify-center gap-2 rounded-xl px-4 text-[12px] font-bold text-white shadow-soft ${
+                    orderingBlocked ? "bg-ok" : "bg-danger"
+                  }`}
+                >
+                  {orderingBlocked ? (
+                    <ShieldCheck className="h-4 w-4" />
+                  ) : (
+                    <Ban className="h-4 w-4" />
+                  )}
+                  {orderingBlocked
+                    ? "Unblock Customer Ordering"
+                    : "Block Customer Ordering"}
+                </button>
+              </form>
+            </div>
+            {blockState.ok ? (
+              <p className="mt-3 text-[11.5px] font-semibold text-ok">
+                {blockState.ok}
+              </p>
+            ) : null}
+            {blockState.error ? (
+              <p className="mt-3 text-[11.5px] font-semibold text-danger">
+                {blockState.error}
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-6 flex items-center justify-between">

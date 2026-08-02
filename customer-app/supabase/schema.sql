@@ -184,6 +184,9 @@ create table if not exists public.customers (
   wallet_balance int not null default 0,
   notifications_read boolean not null default false,
   notification_removed_ids text[] not null default '{}',
+  ordering_blocked boolean not null default false,
+  ordering_blocked_at timestamptz,
+  ordering_blocked_by uuid,
   updated_at timestamptz not null default now()
 );
 alter table public.customers add column if not exists village text not null default '';
@@ -192,6 +195,9 @@ alter table public.customers add column if not exists avatar_url text;
 alter table public.customers add column if not exists wallet_balance int not null default 0;
 alter table public.customers add column if not exists notifications_read boolean not null default false;
 alter table public.customers add column if not exists notification_removed_ids text[] not null default '{}';
+alter table public.customers add column if not exists ordering_blocked boolean not null default false;
+alter table public.customers add column if not exists ordering_blocked_at timestamptz;
+alter table public.customers add column if not exists ordering_blocked_by uuid;
 alter table public.customers enable row level security;
 -- Signed-in admin: full control.
 drop policy if exists customers_admin_all on public.customers;

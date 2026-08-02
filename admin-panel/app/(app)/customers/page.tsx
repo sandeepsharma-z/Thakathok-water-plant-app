@@ -13,6 +13,7 @@ interface CustomerTableRow {
   address: string;
   avatar_url: string | null;
   wallet_balance: number;
+  ordering_blocked: boolean;
 }
 
 interface Agg {
@@ -29,7 +30,7 @@ export default async function CustomersPage() {
     supabase.from("bookings").select("*").order("created_at", { ascending: false }),
     supabase
       .from("customers")
-      .select("mobile, name, note, village, address, avatar_url, wallet_balance"),
+      .select("mobile, name, note, village, address, avatar_url, wallet_balance, ordering_blocked"),
     supabase.from("wallet_transactions").select("*").order("created_at", { ascending: false }),
   ]);
 
@@ -74,6 +75,7 @@ export default async function CustomersPage() {
         address: c?.address ?? "",
         avatarUrl: c?.avatar_url ?? null,
         walletBalance: c?.wallet_balance ?? 0,
+        orderingBlocked: c?.ordering_blocked ?? false,
         walletTransactions: (walletData ?? []).filter((t) => t.mobile === mobile),
         bookings: bookings.filter((b) => b.mobile === mobile),
       };
@@ -122,6 +124,7 @@ export default async function CustomersPage() {
               address={r.address}
               avatarUrl={r.avatarUrl}
               walletBalance={r.walletBalance}
+              orderingBlocked={r.orderingBlocked}
               walletTransactions={r.walletTransactions}
               bookings={r.bookings}
             />

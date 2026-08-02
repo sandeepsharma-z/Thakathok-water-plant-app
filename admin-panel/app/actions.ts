@@ -383,6 +383,44 @@ export async function saveCustomer(
   return { ok: "Saved." };
 }
 
+/** Admin-only manual ordering hold. This is the sole business eligibility block. */
+export async function setCustomerOrderingBlocked(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const mobile = String(formData.get("mobile") ?? "").replace(/\D/g, "");
+  const blocked = String(formData.get("blocked") ?? "") === "true";
+  if (mobile.length !== 10) return { error: "Invalid mobile." };
+
+  try {
+    const supabase = await requireAdmin();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("customers").upsert(
+      {
+        mobile,
+        ordering_blocked: blocked,
+        ordering_blocked_at: blocked ? now : null,
+        ordering_blocked_by: blocked ? user?.id ?? null : null,
+        updated_at: now,
+      },
+      { onConflict: "mobile" },
+    );
+    if (error) throw error;
+  } catch {
+    return { error: "Could not update customer ordering access." };
+  }
+
+  revalidatePath("/customers");
+  return {
+    ok: blocked
+      ? "New orders are now blocked for this customer."
+      : "Customer can place new orders again.",
+  };
+}
+
 /** Delete a customer's saved profile (name/note). Bookings are untouched. */
 export async function deleteCustomer(
   _prev: ActionState,
